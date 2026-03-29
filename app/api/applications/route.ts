@@ -95,8 +95,8 @@ export async function POST(req: NextRequest) {
           `🕐 ${formatDateTime()}`,
           [
             [
-              { text: '✅ Одобрить', callback_data: `approve:${mockApp.id}` },
-              { text: '❌ Отклонить', callback_data: `reject:${mockApp.id}` },
+              { text: '✅ Есть места', callback_data: `approve:${mockApp.id}` },
+              { text: '❌ Нет мест', callback_data: `reject:${mockApp.id}` },
             ],
           ]
         ).catch(err => console.error('Telegram error:', err))

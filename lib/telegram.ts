@@ -194,8 +194,8 @@ export async function notifyEmployerNewApplication(
 
   return sendMessageWithButtons(employerChatId, text, [
     [
-      { text: '✅ Одобрить', callback_data: `approve:${applicationId}` },
-      { text: '❌ Отклонить', callback_data: `reject:${applicationId}` },
+      { text: '✅ Есть места', callback_data: `approve:${applicationId}` },
+      { text: '❌ Нет мест', callback_data: `reject:${applicationId}` },
     ],
   ])
 }

@@ -397,6 +397,22 @@ export default function WorkerPage() {
                 {currentStep.type === 'multi' && (
                   <div className="space-y-3">
                     <p className="text-muted text-sm -mt-4 mb-4">Можно выбрать несколько вариантов</p>
+                    <button
+                      onClick={() => {
+                        const allValues = currentStep.options!.map(o => o.value)
+                        const current = multiData[currentStep.key] || []
+                        const allSelected = allValues.every(v => current.includes(v))
+                        setMultiData(prev => ({
+                          ...prev,
+                          [currentStep.key]: allSelected ? [] : allValues,
+                        }))
+                      }}
+                      className="text-sm px-3 py-1.5 rounded-lg border border-accent/40 text-accent hover:bg-accent/10 transition-colors mb-1"
+                    >
+                      {(multiData[currentStep.key] || []).length === currentStep.options!.length
+                        ? 'Снять все'
+                        : 'Выбрать все'}
+                    </button>
                     {currentStep.options!.map(opt => (
                       <OptionCard
                         key={opt.value}
