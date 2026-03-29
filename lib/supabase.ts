@@ -13,8 +13,7 @@ export function getDb() {
   return null
 }
 
-// Legacy export — use getDb() in new code
-export const supabase = null as any // will be replaced by getDb() calls
+// Removed legacy export — all files now use getDb()
 
 // === ТИПЫ ТАБЛИЦ ===
 
