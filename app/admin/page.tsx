@@ -472,6 +472,33 @@ export default function AdminPage() {
                             <span className={`text-xs px-2.5 py-1 rounded-full ${sc.bg} ${sc.color}`}>
                               {sc.label}
                             </span>
+                            {app.status === 'selected' && (
+                              <button
+                                onClick={async () => {
+                                  const date = prompt('Дата и время встречи (ГГГГ-ММ-ДД ЧЧ:ММ):', new Date(Date.now() + 86400000).toISOString().slice(0, 16).replace('T', ' '))
+                                  if (!date) return
+                                  try {
+                                    const res = await fetch('/api/admin/meetings', {
+                                      method: 'POST',
+                                      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ applicationId: app.id, scheduledAt: new Date(date).toISOString() }),
+                                    })
+                                    if (res.ok) {
+                                      alert('Встреча создана!')
+                                      fetchApplications()
+                                      setTab('meetings')
+                                      fetchMeetings()
+                                    } else {
+                                      const data = await res.json()
+                                      alert('Ошибка: ' + (data.error || 'Неизвестная'))
+                                    }
+                                  } catch { alert('Ошибка соединения') }
+                                }}
+                                className="ml-2 text-xs px-2.5 py-1 rounded-full bg-accent/15 text-accent hover:bg-accent/25 transition-colors"
+                              >
+                                📅 Создать встречу
+                              </button>
+                            )}
                           </td>
                           <td className="py-3 text-muted">{new Date(app.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                         </tr>
