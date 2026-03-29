@@ -4,20 +4,24 @@ import { MOCK_VACANCIES } from '@/lib/mock-vacancies'
 
 // GET — список активных вакансий
 export async function GET() {
-  if (supabase) {
-    const { data, error } = await supabase
-      .from('vacancies')
-      .select('*')
-      .eq('active', true)
-      .eq('category', 'blue_collar')
-      .order('created_at', { ascending: false })
-
-    if (!error && data && data.length > 0) {
-      return NextResponse.json({ vacancies: data })
-    }
+  if (!supabase) {
+    console.log('Supabase not configured, URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING')
+    return NextResponse.json({ vacancies: MOCK_VACANCIES })
   }
 
-  return NextResponse.json({ vacancies: MOCK_VACANCIES })
+  const { data, error } = await supabase
+    .from('vacancies')
+    .select('*')
+    .eq('active', true)
+    .eq('category', 'blue_collar')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Supabase vacancies error:', error)
+    return NextResponse.json({ vacancies: MOCK_VACANCIES })
+  }
+
+  return NextResponse.json({ vacancies: data && data.length > 0 ? data : MOCK_VACANCIES })
 }
 
 // POST — создать вакансию
