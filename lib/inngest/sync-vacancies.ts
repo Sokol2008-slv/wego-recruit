@@ -9,8 +9,8 @@ export const syncVacancies = inngest.createFunction(
     id: 'sync-vacancies-from-sheets',
     name: 'Sync vacancies from Google Sheets',
     retries: 3,
+    triggers: [{ event: 'vacancies/sync' }],
   },
-  { event: 'vacancies/sync' },
   async ({ step }) => {
     // Шаг 1: Загрузить CSV
     const csv = await step.run('fetch-sheet', async () => {
@@ -106,8 +106,8 @@ export const scheduledSync = inngest.createFunction(
   {
     id: 'scheduled-vacancy-sync',
     name: 'Scheduled vacancy sync (Mon-Fri 8:00)',
+    triggers: [{ cron: '0 8 * * 1-5' }],
   },
-  { cron: '0 8 * * 1-5' }, // Пн-Пт в 8:00 UTC (Inngest использует UTC)
   async ({ step }) => {
     await step.sendEvent('trigger-sync', {
       name: 'vacancies/sync',
