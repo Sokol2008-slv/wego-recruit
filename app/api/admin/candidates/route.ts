@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/supabase'
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'wego2026'
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
 
 function checkAuth(req: NextRequest): boolean {
-  const auth = req.headers.get('Authorization') || ''
-  return auth === `Bearer ${ADMIN_PASSWORD}`
+  const email = (req.headers.get('X-Admin-Email') || '').toLowerCase().trim()
+  return ADMIN_EMAILS.includes(email)
 }
 
 export async function GET(req: NextRequest) {
