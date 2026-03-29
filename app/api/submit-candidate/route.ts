@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { signToken } from '@/lib/auth'
+import { inngest } from '@/lib/inngest/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,44 +11,82 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }
 
-    const { error } = await supabase.from('candidates').insert({
+    // Insert candidate into Supabase
+    const { data: candidate, error } = await supabase.from('candidates').insert({
       name: body.name,
+      surname: body.surname || '',
       phone: body.phone,
+      telegram: body.telegram || null,
+      has_telegram: body.has_telegram !== false,
       location: body.location || null,
       extra_info: body.extra_info || null,
       age_range: body.age_range,
       citizenship: body.citizenship,
-      work_permit: body.work_permit === 'yes',
-      job_type: body.job_type,
+      work_permit: body.work_permit,
+      job_type: body.job_type || [],
       country: body.country,
-      housing_needed: body.housing_needed === 'yes',
+      housing_needed: body.housing_needed,
       start_date: body.start_date,
       schedule: body.schedule,
-      couple: body.couple === 'yes',
+      couple: body.couple,
       polish_level: body.polish_level,
-      restrictions: body.restrictions === 'yes',
+      restrictions: body.restrictions,
+      restrictions_comment: body.restrictions_comment || null,
+      registered: true,
       category: 'blue_collar',
-      source: 'direct',
+      source: body.source || 'direct',
       status: 'new',
-    })
+    }).select().single()
 
     if (error) {
       console.error('Supabase error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Optional N8N webhook
-    const webhookUrl = process.env.N8N_WEBHOOK_URL
-    if (webhookUrl) {
-      fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'new_candidate', data: body }),
-      }).catch(() => {})
-    }
+    // Generate JWT token
+    const token = await signToken({
+      candidateId: candidate.id,
+      phone: body.phone,
+      name: `${body.name} ${body.surname || ''}`.trim(),
+    })
 
-    return NextResponse.json({ success: true })
-  } catch {
+    // Save token
+    await supabase
+      .from('candidates')
+      .update({ auth_token: token })
+      .eq('id', candidate.id)
+
+    // 🔥 Inngest: отправляем событие — все уведомления обработаются надёжно с retry
+    await inngest.send({
+      name: "candidate.registered",
+      data: {
+        candidate: {
+          id: candidate.id,
+          name: body.name,
+          surname: body.surname || '',
+          phone: body.phone,
+          telegram: body.telegram,
+          telegram_id: body.telegram_id || null,
+          age_range: body.age_range,
+          citizenship: body.citizenship,
+          country: body.country,
+          job_type: body.job_type || [],
+          start_date: body.start_date,
+          schedule: body.schedule,
+          restrictions: body.restrictions,
+          restrictions_comment: body.restrictions_comment,
+          location: body.location,
+        },
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      token,
+      candidateId: candidate.id,
+    })
+  } catch (err) {
+    console.error('Submit candidate error:', err)
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 }

@@ -1,98 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Nav from '@/components/Nav'
 import VacancyCard from '@/components/VacancyCard'
-
-const VACANCIES = [
-  {
-    id: '1',
-    title: 'Разнорабочий на завод',
-    company: 'PolPak Sp. z o.o.',
-    country: 'Польша',
-    city: 'Варшава',
-    salary: '4 200 – 5 000 PLN/мес',
-    housing: true,
-    tags: ['Завод', 'Муж', '18–55'],
-    headcount: 30,
-    departure: 'Через 3 дня',
-  },
-  {
-    id: '2',
-    title: 'Сортировщик на складе',
-    company: 'Amazon Logistics',
-    country: 'Польша',
-    city: 'Вроцлав',
-    salary: '4 500 – 5 200 PLN/мес',
-    housing: true,
-    tags: ['Склад', 'Муж/Жен', '18–50'],
-    headcount: 100,
-    departure: 'Через неделю',
-  },
-  {
-    id: '3',
-    title: 'Строитель-универсал',
-    company: 'BauGruppe GmbH',
-    country: 'Германия',
-    city: 'Берлин',
-    salary: '2 800 – 3 500 EUR/мес',
-    housing: false,
-    tags: ['Стройка', 'Муж', '25–50', 'Опыт'],
-    headcount: 15,
-    departure: 'Через 2 недели',
-  },
-  {
-    id: '4',
-    title: 'Упаковщик мясной продукции',
-    company: 'Drobimex S.A.',
-    country: 'Польша',
-    city: 'Щецин',
-    salary: '4 000 – 4 800 PLN/мес',
-    housing: true,
-    tags: ['Завод', 'Муж/Жен', '18–55'],
-    headcount: 50,
-    departure: 'Через 3 дня',
-  },
-  {
-    id: '5',
-    title: 'Сварщик MIG/MAG',
-    company: 'MetallBau AG',
-    country: 'Германия',
-    city: 'Мюнхен',
-    salary: '3 200 – 4 000 EUR/мес',
-    housing: true,
-    tags: ['Сварка', 'Муж', '25–50', 'Сертификат'],
-    headcount: 8,
-    departure: 'Через месяц',
-  },
-  {
-    id: '6',
-    title: 'Рабочий на ферму',
-    company: 'Agro-Farm Sp. z o.o.',
-    country: 'Польша',
-    city: 'Люблин',
-    salary: '3 800 – 4 500 PLN/мес',
-    housing: true,
-    tags: ['Сельхоз', 'Муж/Жен', 'Пара'],
-    headcount: 40,
-    departure: 'Через неделю',
-  },
-]
-
-type Filter = 'all' | 'Польша' | 'Германия'
+import type { Vacancy } from '@/lib/supabase'
 
 export default function VacanciesPage() {
-  const [filter, setFilter] = useState<Filter>('all')
+  const [vacancies, setVacancies] = useState<Vacancy[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('all')
 
-  const filtered = filter === 'all'
-    ? VACANCIES
-    : VACANCIES.filter(v => v.country === filter)
+  useEffect(() => {
+    fetch('/api/vacancies')
+      .then(res => res.json())
+      .then(data => {
+        setVacancies(data.vacancies || [])
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
 
-  const filters: { label: string; value: Filter }[] = [
+  // Динамические фильтры по странам
+  const countries = [...new Set(vacancies.map(v => v.country))]
+  const filters = [
     { label: 'Все', value: 'all' },
-    { label: '🇵🇱 Польша', value: 'Польша' },
-    { label: '🇩🇪 Германия', value: 'Германия' },
+    ...countries.map(c => ({
+      label: c === 'Польша' ? '🇵🇱 Польша' : c === 'Германия' ? '🇩🇪 Германия' : `🌍 ${c}`,
+      value: c,
+    })),
   ]
+
+  const filtered = filter === 'all' ? vacancies : vacancies.filter(v => v.country === filter)
 
   return (
     <>
@@ -103,32 +41,49 @@ export default function VacanciesPage() {
           <p className="text-muted mb-6">Выберите подходящую вакансию и откликнитесь</p>
 
           {/* Filters */}
-          <div className="flex gap-2 mb-8">
-            {filters.map(f => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  filter === f.value
-                    ? 'bg-accent text-white'
-                    : 'bg-bg2 border border-border text-muted hover:text-white'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          {countries.length > 1 && (
+            <div className="flex gap-2 mb-8 flex-wrap">
+              {filters.map(f => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filter === f.value
+                      ? 'bg-accent text-white'
+                      : 'bg-bg2 border border-border text-muted hover:text-white'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <div className="text-center py-12 text-muted">
+              Загрузка вакансий...
+            </div>
+          )}
 
           {/* Vacancy list */}
-          <div className="space-y-4">
-            {filtered.map(v => (
-              <VacancyCard key={v.id} vacancy={v} />
-            ))}
-          </div>
+          {!loading && (
+            <div className="space-y-4">
+              {filtered.map(v => (
+                <VacancyCard key={v.id} vacancy={v} />
+              ))}
+            </div>
+          )}
 
-          {filtered.length === 0 && (
-            <div className="text-center py-12 text-muted">
-              Нет вакансий для выбранного фильтра
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">📋</div>
+              <div className="text-muted">
+                {vacancies.length === 0
+                  ? 'Пока нет доступных вакансий. Заходите позже!'
+                  : 'Нет вакансий для выбранного фильтра'
+                }
+              </div>
             </div>
           )}
         </div>

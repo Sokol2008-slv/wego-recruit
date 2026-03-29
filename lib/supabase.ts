@@ -7,23 +7,79 @@ export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null!
 
-// Типы таблиц (расширяй по мере роста)
+// === ТИПЫ ТАБЛИЦ ===
+
 export type Candidate = {
   id: string
   created_at: string
   name: string
+  surname: string
   phone: string
-  telegram?: string
+  telegram?: string | null
+  has_telegram: boolean
+  telegram_id?: string | null
+  location?: string
   age_range: string
-  gender: string
-  housing_needed: boolean
-  country: string
   citizenship: string
-  departure: string
-  test_score?: number
-  test_answers?: Record<string, unknown>
+  work_permit: string
+  job_type: string[]
+  country: string
+  housing_needed: string
+  start_date: string
+  schedule: string
+  couple: string
+  polish_level: string
+  restrictions: string
+  restrictions_comment?: string | null
+  extra_info?: string | null
+  auth_token?: string
+  registered: boolean
   source: 'telegram' | 'direct' | 'other'
   status: 'new' | 'contacted' | 'hired' | 'rejected'
+}
+
+export type Employer = {
+  id: string
+  created_at: string
+  company: string
+  contact_name: string
+  phone?: string
+  telegram_chat_id?: string
+  telegram_username?: string
+  active: boolean
+}
+
+export type Vacancy = {
+  id: string
+  created_at: string
+  employer_id?: string
+  title: string
+  company: string
+  country: string
+  city: string
+  salary?: string
+  housing: boolean
+  schedule?: string
+  description?: string
+  requirements?: string
+  departure_options: string[]
+  tags: string[]
+  headcount: number
+  active: boolean
+  category: 'blue_collar' | 'office' | 'hr'
+}
+
+export type Application = {
+  id: string
+  created_at: string
+  candidate_id: string
+  vacancy_id: string
+  status: 'pending' | 'approved' | 'rejected' | 'selected' | 'auto_rejected'
+  employer_response_at?: string | null
+  worker_selected_at?: string | null
+  // Joined data (from queries)
+  vacancy?: Vacancy
+  candidate?: Candidate
 }
 
 export type EmployerRequest = {
@@ -39,19 +95,4 @@ export type EmployerRequest = {
   phone: string
   notes?: string
   status: 'new' | 'in_progress' | 'closed'
-}
-
-export type Vacancy = {
-  id: string
-  title: string
-  company: string
-  country: string
-  city: string
-  salary: string
-  housing: boolean
-  departure_options: string[]
-  tags: string[]
-  headcount: number
-  active: boolean
-  category: 'blue_collar' | 'office' | 'hr'
 }

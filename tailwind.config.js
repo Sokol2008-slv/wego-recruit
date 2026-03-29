@@ -22,6 +22,8 @@ module.exports = {
         cherry: '#7A3848',
         blue: '#1a6fd4',
         success: '#10B981',
+        warning: '#EAB308',
+        danger: '#EF4444',
       },
     },
   },

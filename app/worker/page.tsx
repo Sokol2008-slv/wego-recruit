@@ -177,6 +177,7 @@ export default function WorkerPage() {
     surname: '',
     phone: '',
     telegram: '',
+    noTelegram: false,
   })
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -264,7 +265,7 @@ export default function WorkerPage() {
     if (!contacts.surname.trim()) newErrors.surname = true
     const cleanPhone = contacts.phone.replace(/[\s\-()]/g, '')
     if (!cleanPhone.startsWith('+') || !/^\+\d{9,15}$/.test(cleanPhone)) newErrors.phone = true
-    if (!contacts.telegram.trim() || !contacts.telegram.trim().startsWith('@')) newErrors.telegram = true
+    if (!contacts.noTelegram && (!contacts.telegram.trim() || !contacts.telegram.trim().startsWith('@'))) newErrors.telegram = true
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       return
@@ -289,16 +290,31 @@ export default function WorkerPage() {
 
       const body = {
         ...finalData,
-        name: contacts.name + ' ' + contacts.surname,
+        name: contacts.name,
+        surname: contacts.surname,
         phone: contacts.phone,
-        telegram: contacts.telegram,
+        telegram: contacts.noTelegram ? null : contacts.telegram,
+        has_telegram: !contacts.noTelegram,
       }
-      await fetch('/api/submit-candidate', {
+      const res = await fetch('/api/submit-candidate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      router.push('/vacancies')
+      const data = await res.json()
+
+      // Save auth token
+      if (data.token) {
+        localStorage.setItem('wego_token', data.token)
+        localStorage.setItem('wego_candidate_id', data.candidateId)
+        localStorage.setItem('wego_name', `${contacts.name} ${contacts.surname}`.trim())
+        document.cookie = `wego_token=${data.token}; path=/; max-age=${30 * 24 * 60 * 60}`
+      }
+
+      // Redirect to vacancies or wherever they came from
+      const urlParams = new URLSearchParams(window.location.search)
+      const redirect = urlParams.get('redirect') || '/vacancies'
+      router.push(redirect)
     } catch {
       alert('Ошибка при отправке. Попробуйте позже.')
     } finally {
@@ -462,17 +478,32 @@ export default function WorkerPage() {
                     {errors.phone && <p className="text-red-500 text-xs mt-1">Введите номер с + и кодом страны (например +380...)</p>}
                   </div>
                   <div>
-                    <label className="text-sm text-muted mb-1 block">Telegram *</label>
-                    <input
-                      value={contacts.telegram}
-                      onChange={e => {
-                        setContacts(c => ({ ...c, telegram: e.target.value }))
-                        setErrors(e2 => ({ ...e2, telegram: false }))
-                      }}
-                      className={`w-full bg-bg2 border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors ${errors.telegram ? 'border-red-500' : 'border-border'}`}
-                      placeholder="@username"
-                    />
-                    {errors.telegram && <p className="text-red-500 text-xs mt-1">Введите ник в формате @username</p>}
+                    <label className="text-sm text-muted mb-1 block">
+                      Telegram {!contacts.noTelegram && '*'}
+                    </label>
+                    {!contacts.noTelegram && (
+                      <>
+                        <input
+                          value={contacts.telegram}
+                          onChange={e => {
+                            setContacts(c => ({ ...c, telegram: e.target.value }))
+                            setErrors(e2 => ({ ...e2, telegram: false }))
+                          }}
+                          className={`w-full bg-bg2 border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors ${errors.telegram ? 'border-red-500' : 'border-border'}`}
+                          placeholder="@username"
+                        />
+                        {errors.telegram && <p className="text-red-500 text-xs mt-1">Введите ник в формате @username</p>}
+                      </>
+                    )}
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={contacts.noTelegram}
+                        onChange={e => setContacts(c => ({ ...c, noTelegram: e.target.checked, telegram: '' }))}
+                        className="w-4 h-4 rounded border-border bg-bg2 accent-accent"
+                      />
+                      <span className="text-xs text-muted">У меня нет Telegram</span>
+                    </label>
                   </div>
                   <button
                     onClick={handleSubmit}
