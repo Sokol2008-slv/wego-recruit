@@ -119,12 +119,6 @@ export default function VacancyDetailPage() {
                   <div className="text-sm text-white font-medium">{vacancy.schedule}</div>
                 </div>
               )}
-              {vacancy.headcount > 0 && (
-                <div className="bg-bg3 rounded-xl p-3">
-                  <div className="text-xs text-muted mb-1">Свободных мест</div>
-                  <div className="text-sm text-white font-medium">{vacancy.headcount}</div>
-                </div>
-              )}
             </div>
 
             {/* Description */}

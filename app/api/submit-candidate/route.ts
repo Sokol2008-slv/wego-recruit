@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     const { data: candidate, error } = await supabase.from('candidates').insert({
       name: body.name,
       surname: body.surname || '',
+      email: body.email,
       phone: body.phone,
       telegram: body.telegram || null,
       has_telegram: body.has_telegram !== false,

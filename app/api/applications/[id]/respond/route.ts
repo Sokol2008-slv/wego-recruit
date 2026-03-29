@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/supabase'
+import { sendMessage } from '@/lib/telegram'
 
 // POST — работодатель одобряет/отклоняет заявку
 // Вызывается из Telegram webhook (callback кнопки) или напрямую
@@ -35,6 +36,17 @@ export async function POST(
 
     if (error || !data) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+    }
+
+    // Send Telegram notification to agency on approval
+    if (newStatus === 'approved') {
+      const agencyChatId = process.env.TELEGRAM_AGENCY_CHAT_ID
+      if (agencyChatId) {
+        const candidate = data.candidate
+        const vacancy = data.vacancy
+        const text = `✅ Вакансия одобрена!\nКомпания: ${vacancy?.company}\nВакансия: ${vacancy?.title}\nКандидат: ${candidate?.name} ${candidate?.surname}`
+        sendMessage(agencyChatId, text).catch(err => console.error('Telegram notify error:', err))
+      }
     }
 
     return NextResponse.json({ application: data })

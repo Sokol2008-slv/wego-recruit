@@ -175,6 +175,7 @@ export default function WorkerPage() {
   const [contacts, setContacts] = useState({
     name: '',
     surname: '',
+    email: '',
     phone: '',
     telegram: '',
     noTelegram: false,
@@ -263,6 +264,7 @@ export default function WorkerPage() {
     const newErrors: Record<string, boolean> = {}
     if (!contacts.name.trim()) newErrors.name = true
     if (!contacts.surname.trim()) newErrors.surname = true
+    if (!contacts.email.trim() || !contacts.email.includes('@')) newErrors.email = true
     const cleanPhone = contacts.phone.replace(/[\s\-()]/g, '')
     if (!cleanPhone.startsWith('+') || !/^\+\d{9,15}$/.test(cleanPhone)) newErrors.phone = true
     if (!contacts.noTelegram && (!contacts.telegram.trim() || !contacts.telegram.trim().startsWith('@'))) newErrors.telegram = true
@@ -292,6 +294,7 @@ export default function WorkerPage() {
         ...finalData,
         name: contacts.name,
         surname: contacts.surname,
+        email: contacts.email,
         phone: contacts.phone,
         telegram: contacts.noTelegram ? null : contacts.telegram,
         has_telegram: !contacts.noTelegram,
@@ -462,6 +465,20 @@ export default function WorkerPage() {
                       />
                       {errors.surname && <p className="text-red-500 text-xs mt-1">Обязательное поле</p>}
                     </div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted mb-1 block">Email *</label>
+                    <input
+                      value={contacts.email}
+                      onChange={e => {
+                        setContacts(c => ({ ...c, email: e.target.value }))
+                        setErrors(e2 => ({ ...e2, email: false }))
+                      }}
+                      className={`w-full bg-bg2 border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors ${errors.email ? 'border-red-500' : 'border-border'}`}
+                      placeholder="example@mail.com"
+                      type="email"
+                    />
+                    {errors.email && <p className="text-red-500 text-xs mt-1">Введите корректный email (должен содержать @)</p>}
                   </div>
                   <div>
                     <label className="text-sm text-muted mb-1 block">Номер телефона *</label>
