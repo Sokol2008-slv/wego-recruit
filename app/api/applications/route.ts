@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { inngest } from '@/lib/inngest/client'
+import { MOCK_VACANCIES } from '@/lib/mock-vacancies'
+import { addApplication, getApplicationsByCandidate } from '@/lib/mock-store'
+import { sendMessageWithButtons } from '@/lib/telegram'
 
-// GET — список заявок текущего кандидата (для дашборда)
+const AGENCY_CHAT_ID = process.env.TELEGRAM_AGENCY_CHAT_ID || ''
+
+// GET — список заявок текущего кандидата
 export async function GET(req: NextRequest) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
     || req.cookies.get('wego_token')?.value
@@ -18,8 +23,13 @@ export async function GET(req: NextRequest) {
   }
 
   if (!supabase) {
-    // Тестовый режим — пустой список (заявки в памяти не хранятся)
-    return NextResponse.json({ applications: [] })
+    // Тестовый режим — из mock store, с данными вакансий
+    const apps = getApplicationsByCandidate(payload.candidateId)
+    const appsWithVacancies = apps.map(app => ({
+      ...app,
+      vacancy: MOCK_VACANCIES.find(v => v.id === app.vacancy_id) || null,
+    }))
+    return NextResponse.json({ applications: appsWithVacancies })
   }
 
   const { data, error } = await supabase
@@ -53,24 +63,46 @@ export async function POST(req: NextRequest) {
     const { vacancyId } = await req.json()
 
     if (!supabase) {
-      // Тестовый режим — возвращаем mock application
+      // Тестовый режим — сохраняем в mock store
+      const existing = getApplicationsByCandidate(payload.candidateId)
+        .find(a => a.vacancy_id === vacancyId)
+      if (existing) {
+        return NextResponse.json({ error: 'Already applied' }, { status: 409 })
+      }
+
       const mockApp = {
         id: `app-${Date.now()}`,
         created_at: new Date().toISOString(),
         candidate_id: payload.candidateId,
         vacancy_id: vacancyId,
-        status: 'pending',
+        status: 'pending' as const,
+      }
+      addApplication(mockApp)
+
+      // Найти вакансию для уведомления
+      const vacancy = MOCK_VACANCIES.find(v => v.id === vacancyId)
+
+      // Отправить Telegram с кнопками одобрить/отклонить
+      if (AGENCY_CHAT_ID) {
+        sendMessageWithButtons(
+          AGENCY_CHAT_ID,
+          `📩 <b>Новая заявка!</b>\n\n` +
+          `👤 ${payload.name}\n` +
+          `💼 ${vacancy?.title || 'Вакансия'} — ${vacancy?.company || ''}\n` +
+          `📍 ${vacancy?.city}, ${vacancy?.country}`,
+          [
+            [
+              { text: '✅ Одобрить', callback_data: `approve:${mockApp.id}` },
+              { text: '❌ Отклонить', callback_data: `reject:${mockApp.id}` },
+            ],
+          ]
+        ).catch(err => console.error('Telegram error:', err))
       }
 
-      inngest.send({
-        name: "application.created",
-        data: { applicationId: mockApp.id, candidateId: payload.candidateId, vacancyId },
-      }).catch(() => {})
-
-      return NextResponse.json({ application: mockApp })
+      return NextResponse.json({ application: { ...mockApp, vacancy } })
     }
 
-    // Check if already applied
+    // Supabase mode
     const { data: existing } = await supabase
       .from('applications')
       .select('id')
@@ -82,7 +114,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Already applied' }, { status: 409 })
     }
 
-    // Create application
     const { data: application, error } = await supabase
       .from('applications')
       .insert({
@@ -97,7 +128,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // 🔥 Inngest: уведомления через очередь с retry
     await inngest.send({
       name: "application.created",
       data: {
