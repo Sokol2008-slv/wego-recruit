@@ -8,7 +8,7 @@ function CountryFlag({ country }: { country: string }) {
   return <span className="text-lg">{flag}</span>
 }
 
-export default function VacancyCard({ vacancy }: { vacancy: Vacancy }) {
+export default function VacancyCard({ vacancy, applied }: { vacancy: Vacancy; applied?: boolean }) {
   return (
     <div className="bg-bg2 border border-border rounded-2xl p-5 hover:border-muted/50 transition-all duration-200">
       <div className="flex items-start justify-between mb-3">
@@ -44,12 +44,17 @@ export default function VacancyCard({ vacancy }: { vacancy: Vacancy }) {
         ))}
       </div>
 
-      <Link
-        href={`/vacancies/${vacancy.id}`}
-        className="inline-block px-5 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm font-medium transition-colors"
-      >
-        Подробнее
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/vacancies/${vacancy.id}`}
+          className="inline-block px-5 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm font-medium transition-colors"
+        >
+          Подробнее
+        </Link>
+        {applied && (
+          <span className="text-xs text-success">✓ Заявка подана</span>
+        )}
+      </div>
     </div>
   )
 }

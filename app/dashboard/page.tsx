@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/Nav'
 import { useAuth } from '@/lib/useAuth'
@@ -23,24 +23,39 @@ export default function DashboardPage() {
   const [selecting, setSelecting] = useState<string | null>(null)
   const [showWarning, setShowWarning] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!isLoggedIn && !loading) {
-      router.push('/worker?redirect=/dashboard')
-      return
-    }
-
+  const fetchApps = useCallback(async () => {
     if (!token) return
 
-    fetch('/api/applications', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        setApplications(data.applications || [])
-        setLoading(false)
+    try {
+      const res = await fetch('/api/applications', {
+        headers: { 'Authorization': `Bearer ${token}` },
       })
-      .catch(() => setLoading(false))
-  }, [isLoggedIn, token, loading, router])
+      const data = await res.json()
+      if (data.applications) {
+        setApplications(data.applications)
+      }
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [token])
+
+  useEffect(() => {
+    if (!token) {
+      const timer = setTimeout(() => {
+        if (!localStorage.getItem('wego_token')) {
+          router.push('/worker?redirect=/dashboard')
+        }
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+    fetchApps()
+  }, [token, fetchApps, router])
+
+  // Polling каждые 5 секунд — подхватываем изменения от Telegram
+  useEffect(() => {
+    if (!token) return
+    const interval = setInterval(fetchApps, 5000)
+    return () => clearInterval(interval)
+  }, [token, fetchApps])
 
   const filterApps = (t: Tab) => {
     if (t === 'pending') return applications.filter(a => a.status === 'pending')
@@ -63,11 +78,7 @@ export default function DashboardPage() {
       })
 
       if (res.ok) {
-        // Refresh applications
-        const data = await fetch('/api/applications', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }).then(r => r.json())
-        setApplications(data.applications || [])
+        await fetchApps()
         setShowWarning(null)
       }
     } catch {
@@ -78,7 +89,7 @@ export default function DashboardPage() {
   }
 
   const currentApps = filterApps(tab)
-  const approvedCount = filterApps('approved').length
+  const approvedCount = filterApps('approved').filter(a => a.status === 'approved').length
 
   return (
     <>
@@ -110,12 +121,8 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Loading */}
-          {loading && (
-            <div className="text-center py-12 text-muted">Загрузка...</div>
-          )}
+          {loading && <div className="text-center py-12 text-muted">Загрузка...</div>}
 
-          {/* Applications list */}
           {!loading && currentApps.length === 0 && (
             <div className="text-center py-12">
               <div className="text-4xl mb-4">
@@ -144,7 +151,7 @@ export default function DashboardPage() {
                 const statusConfig = {
                   pending: { label: 'На рассмотрении', color: 'text-warning', bg: 'bg-warning/15' },
                   approved: { label: 'Одобрено', color: 'text-success', bg: 'bg-success/15' },
-                  selected: { label: 'Выбрано вами', color: 'text-accent', bg: 'bg-accent/15' },
+                  selected: { label: 'Встреча назначена', color: 'text-accent', bg: 'bg-accent/15' },
                   rejected: { label: 'Отклонено', color: 'text-danger', bg: 'bg-danger/15' },
                   auto_rejected: { label: 'Автоматически отклонено', color: 'text-danger', bg: 'bg-danger/15' },
                 }
@@ -166,7 +173,7 @@ export default function DashboardPage() {
                       <div className="text-lg font-bold text-accent mb-3">{v.salary}</div>
                     )}
 
-                    {/* Кнопка "Выбрать" для одобренных */}
+                    {/* Кнопка выбора для одобренных */}
                     {app.status === 'approved' && (
                       <button
                         onClick={() => {
@@ -179,8 +186,19 @@ export default function DashboardPage() {
                         disabled={selecting === app.id}
                         className="w-full mt-2 py-2.5 rounded-xl bg-accent hover:bg-accent/90 text-white font-medium transition-colors disabled:opacity-50"
                       >
-                        {selecting === app.id ? 'Обработка...' : 'Выбрать эту вакансию'}
+                        {selecting === app.id ? 'Обработка...' : 'Назначить встречу'}
                       </button>
+                    )}
+
+                    {/* После выбора — контакт */}
+                    {app.status === 'selected' && (
+                      <div className="mt-3 bg-accent/10 border border-accent/30 rounded-xl p-4">
+                        <p className="text-sm text-accent font-medium mb-1">Встреча подтверждена!</p>
+                        <p className="text-xs text-muted">Напишите на почту для уточнения деталей:</p>
+                        <a href="mailto:test@wego.com" className="text-accent text-sm font-medium hover:underline">
+                          test@wego.com
+                        </a>
+                      </div>
                     )}
                   </div>
                 )
@@ -197,7 +215,7 @@ export default function DashboardPage() {
             <div className="text-3xl mb-3">⚠️</div>
             <h3 className="text-xl font-semibold text-white mb-2">Внимание</h3>
             <p className="text-muted text-sm mb-6">
-              Когда вы выберете одну вакансию, все остальные одобренные заявки <strong className="text-danger">автоматически отклоняются</strong>. Это действие нельзя отменить.
+              Когда вы назначите встречу по одной вакансии, все остальные одобренные заявки <strong className="text-danger">автоматически отклоняются</strong>. Это действие нельзя отменить.
             </p>
             <div className="flex gap-3">
               <button
@@ -211,7 +229,7 @@ export default function DashboardPage() {
                 disabled={!!selecting}
                 className="flex-1 px-4 py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-white font-medium transition-colors disabled:opacity-50"
               >
-                {selecting ? 'Обработка...' : 'Подтвердить выбор'}
+                {selecting ? 'Обработка...' : 'Подтвердить'}
               </button>
             </div>
           </div>

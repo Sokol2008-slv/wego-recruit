@@ -14,6 +14,7 @@ export default function VacanciesPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [authChecked, setAuthChecked] = useState(false)
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     // Даём useAuth время проверить localStorage
@@ -36,6 +37,21 @@ export default function VacanciesPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+
+    // Load applied vacancy IDs
+    const token = localStorage.getItem('wego_token')
+    if (token) {
+      fetch('/api/applications', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.applications) {
+            setAppliedIds(new Set(data.applications.map((a: { vacancy_id: string }) => a.vacancy_id)))
+          }
+        })
+        .catch(() => {})
+    }
   }, [authChecked, isLoggedIn])
 
   // Динамические фильтры по странам
@@ -130,7 +146,7 @@ export default function VacanciesPage() {
           {!loading && (
             <div className="space-y-4">
               {filtered.map(v => (
-                <VacancyCard key={v.id} vacancy={v} />
+                <VacancyCard key={v.id} vacancy={v} applied={appliedIds.has(v.id)} />
               ))}
             </div>
           )}
