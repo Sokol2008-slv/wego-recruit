@@ -14,15 +14,14 @@ export default function Nav() {
         </Link>
 
         <div className="flex items-center gap-4">
-          <Link
-            href="/vacancies"
-            className="text-sm text-muted hover:text-white transition-colors"
-          >
-            Вакансии
-          </Link>
-
           {isLoggedIn ? (
             <>
+              <Link
+                href="/vacancies"
+                className="text-sm text-muted hover:text-white transition-colors"
+              >
+                Вакансии
+              </Link>
               <Link
                 href="/dashboard"
                 className="text-sm text-muted hover:text-white transition-colors"

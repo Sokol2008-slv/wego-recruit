@@ -1,16 +1,34 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Nav from '@/components/Nav'
 import VacancyCard from '@/components/VacancyCard'
+import { useAuth } from '@/lib/useAuth'
 import type { Vacancy } from '@/lib/supabase'
 
 export default function VacanciesPage() {
+  const router = useRouter()
+  const { isLoggedIn } = useAuth()
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
+    // Даём useAuth время проверить localStorage
+    const timer = setTimeout(() => setAuthChecked(true), 100)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!authChecked) return
+
+    if (!isLoggedIn) {
+      setLoading(false)
+      return
+    }
+
     fetch('/api/vacancies')
       .then(res => res.json())
       .then(data => {
@@ -18,7 +36,7 @@ export default function VacanciesPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [])
+  }, [authChecked, isLoggedIn])
 
   // Динамические фильтры по странам
   const countries = [...new Set(vacancies.map(v => v.country))]
@@ -31,6 +49,48 @@ export default function VacanciesPage() {
   ]
 
   const filtered = filter === 'all' ? vacancies : vacancies.filter(v => v.country === filter)
+
+  // Не авторизован — показываем "пресную" страницу
+  if (authChecked && !isLoggedIn) {
+    return (
+      <>
+        <Nav />
+        <main className="min-h-screen pt-24 pb-12 px-4">
+          <div className="max-w-lg mx-auto text-center py-16">
+            <div className="text-6xl mb-6">🔒</div>
+            <h1 className="font-display text-4xl text-white mb-4">Доступ к вакансиям</h1>
+            <p className="text-muted mb-2">
+              Для просмотра вакансий необходимо пройти регистрацию.
+            </p>
+            <p className="text-muted text-sm mb-8">
+              Заполните короткую анкету — это займёт 2 минуты.
+              После этого вы получите доступ к актуальным предложениям работы.
+            </p>
+            <button
+              onClick={() => router.push('/worker?redirect=/vacancies')}
+              className="px-8 py-3 rounded-xl bg-accent hover:bg-accent/90 text-white font-medium text-lg transition-colors"
+            >
+              Зарегистрироваться
+            </button>
+            <div className="mt-12 grid grid-cols-3 gap-4 text-center">
+              <div className="bg-bg2 border border-border rounded-xl p-4">
+                <div className="text-2xl mb-2">🌍</div>
+                <div className="text-xs text-muted">Работа в Европе</div>
+              </div>
+              <div className="bg-bg2 border border-border rounded-xl p-4">
+                <div className="text-2xl mb-2">🏠</div>
+                <div className="text-xs text-muted">С жильём</div>
+              </div>
+              <div className="bg-bg2 border border-border rounded-xl p-4">
+                <div className="text-2xl mb-2">💰</div>
+                <div className="text-xs text-muted">Достойная оплата</div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </>
+    )
+  }
 
   return (
     <>
