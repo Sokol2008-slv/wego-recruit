@@ -7,6 +7,7 @@ import {
   onApplicationSelected,
   onMeetingScheduled,
 } from "@/lib/inngest/functions"
+import { syncVacancies, scheduledSync } from "@/lib/inngest/sync-vacancies"
 
 // Inngest API route — обслуживает все события
 export const { GET, POST, PUT } = serve({
@@ -17,5 +18,7 @@ export const { GET, POST, PUT } = serve({
     onApplicationResponded,
     onApplicationSelected,
     onMeetingScheduled,
+    syncVacancies,
+    scheduledSync,
   ],
 })
