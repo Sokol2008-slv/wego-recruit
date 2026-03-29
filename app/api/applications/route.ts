@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { inngest } from '@/lib/inngest/client'
 import { MOCK_VACANCIES } from '@/lib/mock-vacancies'
@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
   }
 
+  const supabase = getDb()
   if (!supabase) {
     // Тестовый режим — из mock store, с данными вакансий
     const apps = getApplicationsByCandidate(payload.candidateId)
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
   try {
     const { vacancyId } = await req.json()
 
+    const supabase = getDb()
     if (!supabase) {
       // Тестовый режим — сохраняем в mock store
       const existing = getApplicationsByCandidate(payload.candidateId)

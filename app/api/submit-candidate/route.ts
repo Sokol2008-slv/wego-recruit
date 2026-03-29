@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/supabase'
 import { signToken } from '@/lib/auth'
 import { inngest } from '@/lib/inngest/client'
 
@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
 
     let candidateId = `temp-${Date.now()}`
+    const supabase = getDb()
 
     if (!supabase) {
       // Без Supabase — генерируем токен и работаем в тестовом режиме

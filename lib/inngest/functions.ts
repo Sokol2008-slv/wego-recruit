@@ -7,7 +7,7 @@ import {
   notifyAgencyWorkerSelected,
   notifyEmployerAutoRejected,
 } from "@/lib/telegram"
-import { supabase } from "@/lib/supabase"
+import { getDb } from "@/lib/supabase"
 
 // =============================================
 // EVENT: candidate.registered
@@ -53,6 +53,7 @@ export const onApplicationCreated = inngest.createFunction(
     const { applicationId } = event.data
 
     const appData = await step.run("fetch-data", async () => {
+      const supabase = getDb()
       if (!supabase) throw new Error("DB not configured")
 
       const { data: app } = await supabase
@@ -108,6 +109,7 @@ export const onApplicationResponded = inngest.createFunction(
     const { applicationId, status } = event.data
 
     const appData = await step.run("fetch-data", async () => {
+      const supabase = getDb()
       if (!supabase) throw new Error("DB not configured")
 
       const { data } = await supabase
@@ -151,6 +153,7 @@ export const onApplicationSelected = inngest.createFunction(
     const { applicationId, candidateId, candidateName } = event.data
 
     const selectedApp = await step.run("fetch-selected", async () => {
+      const supabase = getDb()
       if (!supabase) throw new Error("DB not configured")
 
       const { data } = await supabase
@@ -165,6 +168,7 @@ export const onApplicationSelected = inngest.createFunction(
     if (!selectedApp) return { error: "Application not found" }
 
     const autoRejected = await step.run("auto-reject-others", async () => {
+      const supabase = getDb()
       if (!supabase) throw new Error("DB not configured")
 
       const { data: others } = await supabase

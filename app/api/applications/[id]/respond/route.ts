@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/supabase'
 
 // POST — работодатель одобряет/отклоняет заявку
 // Вызывается из Telegram webhook (callback кнопки) или напрямую
@@ -7,6 +7,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const supabase = getDb()
   if (!supabase) {
     return NextResponse.json({ error: 'DB not configured' }, { status: 500 })
   }

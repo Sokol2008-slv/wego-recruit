@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/supabase'
 import { MOCK_VACANCIES } from '@/lib/mock-vacancies'
 
 // GET — подробная информация о вакансии
@@ -8,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  const supabase = getDb()
 
   // Supabase
   if (supabase) {
@@ -36,6 +37,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const supabase = getDb()
   if (!supabase) {
     return NextResponse.json({ error: 'DB not configured' }, { status: 500 })
   }

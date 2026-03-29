@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/supabase'
 import {
   sendMessage,
   answerCallbackQuery,
@@ -10,6 +10,7 @@ import { getApplicationById, updateApplicationStatus } from '@/lib/mock-store'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://recruit-starter.vercel.app'
 
 export async function POST(req: NextRequest) {
+  const supabase = getDb()
   try {
     const body = await req.json()
 

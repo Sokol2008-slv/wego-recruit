@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { inngest } from '@/lib/inngest/client'
 
@@ -20,6 +20,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
   }
 
+  const supabase = getDb()
   if (!supabase) {
     return NextResponse.json({ error: 'DB not configured' }, { status: 500 })
   }

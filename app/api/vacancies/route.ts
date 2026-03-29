@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/supabase'
 import { MOCK_VACANCIES } from '@/lib/mock-vacancies'
 
 // GET — список активных вакансий
 export async function GET() {
+  const supabase = getDb()
   if (!supabase) {
     console.log('Supabase not configured, URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING')
     return NextResponse.json({ vacancies: MOCK_VACANCIES })
@@ -26,6 +27,7 @@ export async function GET() {
 
 // POST — создать вакансию
 export async function POST(req: NextRequest) {
+  const supabase = getDb()
   if (!supabase) {
     return NextResponse.json({ error: 'DB not configured' }, { status: 500 })
   }
