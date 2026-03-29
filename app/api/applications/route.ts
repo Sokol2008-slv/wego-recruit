@@ -63,6 +63,12 @@ export async function POST(req: NextRequest) {
   try {
     const { vacancyId } = await req.json()
 
+    // Валидация UUID формата
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!vacancyId || !UUID_RE.test(vacancyId)) {
+      return NextResponse.json({ error: 'Неверный идентификатор вакансии' }, { status: 400 })
+    }
+
     const supabase = getDb()
     if (!supabase) {
       // Тестовый режим — сохраняем в mock store
@@ -142,7 +148,8 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('Application insert error:', error)
+      return NextResponse.json({ error: 'Ошибка при подаче заявки. Попробуйте ещё раз.' }, { status: 500 })
     }
 
     inngest.send({

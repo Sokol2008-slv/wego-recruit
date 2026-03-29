@@ -11,6 +11,15 @@ import { getApplicationById, updateApplicationStatus } from '@/lib/mock-store'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://recruit-starter.vercel.app'
 
 export async function POST(req: NextRequest) {
+  // Проверка секретного токена (если настроен)
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET
+  if (webhookSecret) {
+    const headerSecret = req.headers.get('X-Telegram-Bot-Api-Secret-Token')
+    if (headerSecret !== webhookSecret) {
+      return NextResponse.json({ ok: false }, { status: 403 })
+    }
+  }
+
   const supabase = getDb()
   try {
     const body = await req.json()
