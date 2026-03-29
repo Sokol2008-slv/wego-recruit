@@ -65,6 +65,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
 
+    // Check if candidate already has an active meeting
+    const { data: existingMeetings } = await supabase
+      .from('meetings')
+      .select('id')
+      .eq('candidate_id', app.candidate_id)
+      .not('status', 'eq', 'cancelled')
+      .limit(1)
+
+    if (existingMeetings && existingMeetings.length > 0) {
+      return NextResponse.json({ error: 'У этого кандидата уже есть активная встреча' }, { status: 409 })
+    }
+
     // Create meeting
     const { data: meeting, error: meetingError } = await supabase
       .from('meetings')
