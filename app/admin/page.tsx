@@ -50,6 +50,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
 
 export default function AdminPage() {
   const [adminEmail, setAdminEmail] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
   const [authed, setAuthed] = useState(false)
   const [authError, setAuthError] = useState(false)
   const [tab, setTab] = useState<Tab>('applications')
@@ -68,21 +69,21 @@ export default function AdminPage() {
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
-  const getStoredEmail = () => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('admin_email') || adminEmail
-    }
-    return adminEmail
+  const getAuthHeaders = (): Record<string, string> => {
+    const email = (typeof window !== 'undefined' ? sessionStorage.getItem('admin_email') : null) || adminEmail
+    const pass = (typeof window !== 'undefined' ? sessionStorage.getItem('admin_password') : null) || adminPassword
+    return { 'X-Admin-Email': email, 'X-Admin-Password': pass }
   }
 
   const handleLogin = async () => {
     setAuthError(false)
     try {
       const res = await fetch('/api/admin/applications', {
-        headers: { 'X-Admin-Email': adminEmail },
+        headers: { 'X-Admin-Email': adminEmail, 'X-Admin-Password': adminPassword },
       })
       if (res.ok) {
         sessionStorage.setItem('admin_email', adminEmail)
+        sessionStorage.setItem('admin_password', adminPassword)
         setAuthed(true)
         const data = await res.json()
         setApplications(data.applications || [])
@@ -98,7 +99,7 @@ export default function AdminPage() {
     setAppsLoading(true)
     try {
       const res = await fetch('/api/admin/applications', {
-        headers: { 'X-Admin-Email': getStoredEmail() },
+        headers: { ...getAuthHeaders() },
       })
       if (res.ok) {
         const data = await res.json()
@@ -114,7 +115,7 @@ export default function AdminPage() {
     try {
       const params = q ? `?search=${encodeURIComponent(q)}` : ''
       const res = await fetch(`/api/admin/candidates${params}`, {
-        headers: { 'X-Admin-Email': getStoredEmail() },
+        headers: { ...getAuthHeaders() },
       })
       if (res.ok) {
         const data = await res.json()
@@ -129,7 +130,7 @@ export default function AdminPage() {
     setDetailLoading(true)
     try {
       const res = await fetch(`/api/admin/candidates/${id}`, {
-        headers: { 'X-Admin-Email': getStoredEmail() },
+        headers: { ...getAuthHeaders() },
       })
       if (res.ok) {
         const data = await res.json()
@@ -159,11 +160,13 @@ export default function AdminPage() {
 
   // Check stored session
   useEffect(() => {
-    const stored = sessionStorage.getItem('admin_email')
-    if (stored) {
-      setAdminEmail(stored)
+    const storedEmail = sessionStorage.getItem('admin_email')
+    const storedPass = sessionStorage.getItem('admin_password')
+    if (storedEmail && storedPass) {
+      setAdminEmail(storedEmail)
+      setAdminPassword(storedPass)
       fetch('/api/admin/applications', {
-        headers: { 'X-Admin-Email': stored },
+        headers: { 'X-Admin-Email': storedEmail, 'X-Admin-Password': storedPass },
       }).then(res => {
         if (res.ok) {
           setAuthed(true)
@@ -178,17 +181,25 @@ export default function AdminPage() {
       <main className="min-h-screen bg-bg flex items-center justify-center px-4">
         <div className="max-w-sm w-full">
           <h1 className="font-display text-3xl text-white mb-2 text-center">Админ панель</h1>
-          <p className="text-muted text-sm mb-6 text-center">Введите ваш email для входа</p>
+          <p className="text-muted text-sm mb-6 text-center">Введите email и пароль для входа</p>
           <input
             type="email"
             value={adminEmail}
             onChange={e => { setAdminEmail(e.target.value); setAuthError(false) }}
             onKeyDown={e => { if (e.key === 'Enter') handleLogin() }}
             className={`w-full bg-bg2 border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors mb-3 ${authError ? 'border-red-500' : 'border-border'}`}
-            placeholder="admin@example.com"
+            placeholder="Email"
             autoFocus
           />
-          {authError && <p className="text-red-500 text-xs mb-3">Email не имеет доступа</p>}
+          <input
+            type="password"
+            value={adminPassword}
+            onChange={e => { setAdminPassword(e.target.value); setAuthError(false) }}
+            onKeyDown={e => { if (e.key === 'Enter') handleLogin() }}
+            className={`w-full bg-bg2 border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors mb-3 ${authError ? 'border-red-500' : 'border-border'}`}
+            placeholder="Пароль"
+          />
+          {authError && <p className="text-red-500 text-xs mb-3">Неверный email или пароль</p>}
           <button
             onClick={handleLogin}
             className="w-full py-3 rounded-xl bg-accent hover:bg-accent/90 text-white font-medium transition-colors"
@@ -292,7 +303,7 @@ export default function AdminPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-display text-3xl text-white">Админ панель</h1>
           <button
-            onClick={() => { sessionStorage.removeItem('admin_email'); setAuthed(false); setAdminEmail('') }}
+            onClick={() => { sessionStorage.removeItem('admin_email'); sessionStorage.removeItem('admin_password'); setAuthed(false); setAdminEmail(''); setAdminPassword('') }}
             className="text-sm text-muted hover:text-white transition-colors"
           >
             Выйти
