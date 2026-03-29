@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { MOCK_VACANCIES } from '@/lib/mock-vacancies'
 
 // GET — подробная информация о вакансии
 export async function GET(
@@ -21,14 +22,11 @@ export async function GET(
     }
   }
 
-  // Fallback: fetch from vacancies list API (mock data)
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  try {
-    const res = await fetch(`${baseUrl}/api/vacancies`, { cache: 'no-store' })
-    const { vacancies } = await res.json()
-    const vacancy = vacancies?.find((v: { id: string }) => v.id === id)
-    if (vacancy) return NextResponse.json({ vacancy })
-  } catch { /* ignore */ }
+  // Fallback: mock data
+  const vacancy = MOCK_VACANCIES.find(v => v.id === id)
+  if (vacancy) {
+    return NextResponse.json({ vacancy })
+  }
 
   return NextResponse.json({ error: 'Vacancy not found' }, { status: 404 })
 }
