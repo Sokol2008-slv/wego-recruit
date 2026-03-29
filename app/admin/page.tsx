@@ -678,7 +678,7 @@ export default function AdminPage() {
                             <span className={`text-xs px-2.5 py-1 rounded-full ${sc.bg} ${sc.color}`}>
                               {sc.label}
                             </span>
-                            {app.status === 'selected' && (
+                            {app.status === 'selected' && !filteredApps.some(a => a.candidate?.id === app.candidate?.id && a.status === 'meeting_scheduled') && (
                               <button
                                 onClick={async () => {
                                   const date = prompt('Дата и время встречи (ГГГГ-ММ-ДД ЧЧ:ММ):', new Date(Date.now() + 86400000).toISOString().slice(0, 16).replace('T', ' '))
