@@ -5,6 +5,7 @@ import {
   onApplicationCreated,
   onApplicationResponded,
   onApplicationSelected,
+  onMeetingScheduled,
 } from "@/lib/inngest/functions"
 
 // Inngest API route — обслуживает все события
@@ -15,5 +16,6 @@ export const { GET, POST, PUT } = serve({
     onApplicationCreated,
     onApplicationResponded,
     onApplicationSelected,
+    onMeetingScheduled,
   ],
 })

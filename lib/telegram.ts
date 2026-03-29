@@ -6,6 +6,15 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''
 const AGENCY_CHAT_ID = process.env.TELEGRAM_AGENCY_CHAT_ID || ''
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`
 
+export function formatDateTime(date?: Date | string): string {
+  const d = date ? new Date(date) : new Date()
+  return d.toLocaleString('ru-RU', {
+    timeZone: 'Europe/Warsaw',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
 type InlineButton = {
   text: string
   callback_data: string
@@ -141,7 +150,9 @@ ${candidate.telegram ? `💬 @${candidate.telegram.replace('@', '')}` : '❌ Tel
 • Начало: ${candidate.start_date}
 • График: ${candidate.schedule}
 • Ограничения: ${candidate.restrictions}${candidate.restrictions_comment ? ` (${candidate.restrictions_comment})` : ''}
-${candidate.location ? `• Находится: ${candidate.location}` : ''}`
+${candidate.location ? `• Находится: ${candidate.location}` : ''}
+
+🕐 ${formatDateTime()}`
 
   return sendMessage(AGENCY_CHAT_ID, text)
 }
@@ -157,7 +168,9 @@ export async function notifyAgencyNewApplication(
   const text = `📩 <b>Новая заявка!</b>
 
 👤 ${candidateName} подал заявку на:
-💼 <b>${vacancyTitle}</b> — ${company}`
+💼 <b>${vacancyTitle}</b> — ${company}
+
+🕐 ${formatDateTime()}`
 
   return sendMessage(AGENCY_CHAT_ID, text)
 }
@@ -175,7 +188,9 @@ export async function notifyEmployerNewApplication(
 
 👤 Кандидат: <b>${candidate.name} ${candidate.surname}</b>
 📞 ${candidate.phone}
-• Возраст: ${candidate.age_range}`
+• Возраст: ${candidate.age_range}
+
+🕐 ${formatDateTime()}`
 
   return sendMessageWithButtons(employerChatId, text, [
     [
@@ -208,7 +223,9 @@ export async function notifyEmployerAutoRejected(
 ) {
   const text = `ℹ️ Кандидат <b>${candidateName}</b> выбрал другую вакансию.
 
-Вакансия: ${vacancyTitle}`
+Вакансия: ${vacancyTitle}
+
+🕐 ${formatDateTime()}`
 
   return sendMessage(employerChatId, text)
 }
@@ -224,7 +241,9 @@ export async function notifyAgencyWorkerSelected(
   const text = `🎯 <b>Работник сделал выбор!</b>
 
 👤 ${candidateName} выбрал:
-💼 <b>${vacancyTitle}</b> — ${company}`
+💼 <b>${vacancyTitle}</b> — ${company}
+
+🕐 ${formatDateTime()}`
 
   return sendMessage(AGENCY_CHAT_ID, text)
 }

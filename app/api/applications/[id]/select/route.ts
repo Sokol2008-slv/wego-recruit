@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
-import { sendMessage } from '@/lib/telegram'
+import { sendMessage, formatDateTime } from '@/lib/telegram'
 
 // POST — worker selects an approved vacancy for a meeting
 export async function POST(
@@ -78,7 +78,7 @@ export async function POST(
       const vacancy = other.vacancy as { title: string; employer_id: string; employer: { telegram_chat_id?: string } | null } | null
       const employerChatId = vacancy?.employer?.telegram_chat_id
       if (employerChatId) {
-        const text = `ℹ️ Кандидат ${candidateName} выбрал другую компанию\nВакансия: ${vacancy?.title}`
+        const text = `ℹ️ Кандидат ${candidateName} выбрал другую компанию\nВакансия: ${vacancy?.title}\n\n🕐 ${formatDateTime()}`
         sendMessage(employerChatId, text).catch(err => console.error('Telegram employer notify error:', err))
       }
     }
@@ -90,7 +90,7 @@ export async function POST(
     const candidate = selectedApp.candidate
     const vacancy = selectedApp.vacancy
     const candidateName = `${candidate?.name || ''} ${candidate?.surname || ''}`.trim()
-    const text = `🤝 Назначена встреча!\nКандидат: ${candidateName}\nВыбрал: ${vacancy?.title} — ${vacancy?.company}\n📧 Отправить email с инструкциями для документов`
+    const text = `🤝 Назначена встреча!\nКандидат: ${candidateName}\nВыбрал: ${vacancy?.title} — ${vacancy?.company}\n📧 Отправить email с инструкциями для документов\n\n🕐 ${formatDateTime()}`
     sendMessage(agencyChatId, text).catch(err => console.error('Telegram agency notify error:', err))
   }
 

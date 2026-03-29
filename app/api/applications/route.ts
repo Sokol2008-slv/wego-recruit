@@ -4,7 +4,7 @@ import { verifyToken } from '@/lib/auth'
 import { inngest } from '@/lib/inngest/client'
 import { MOCK_VACANCIES } from '@/lib/mock-vacancies'
 import { addApplication, getApplicationsByCandidate } from '@/lib/mock-store'
-import { sendMessageWithButtons } from '@/lib/telegram'
+import { sendMessageWithButtons, formatDateTime } from '@/lib/telegram'
 
 const AGENCY_CHAT_ID = process.env.TELEGRAM_AGENCY_CHAT_ID || ''
 
@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
           `📩 <b>Новая заявка!</b>\n\n` +
           `👤 ${payload.name}\n` +
           `💼 ${vacancy?.title || 'Вакансия'} — ${vacancy?.company || ''}\n` +
-          `📍 ${vacancy?.city}, ${vacancy?.country}`,
+          `📍 ${vacancy?.city}, ${vacancy?.country}\n\n` +
+          `🕐 ${formatDateTime()}`,
           [
             [
               { text: '✅ Одобрить', callback_data: `approve:${mockApp.id}` },

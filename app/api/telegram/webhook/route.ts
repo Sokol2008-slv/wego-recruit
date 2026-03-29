@@ -4,6 +4,7 @@ import {
   sendMessage,
   answerCallbackQuery,
   editMessageText,
+  formatDateTime,
 } from '@/lib/telegram'
 import { getApplicationById, updateApplicationStatus } from '@/lib/mock-store'
 
@@ -44,6 +45,104 @@ export async function POST(req: NextRequest) {
 
       const [action, applicationId] = data.split(':')
 
+      // Handle meeting confirmation/decline
+      if (action === 'confirm_meeting') {
+        const meetingId = applicationId // reuse the split variable
+        if (supabase) {
+          const { data: meeting, error: meetErr } = await supabase
+            .from('meetings')
+            .update({
+              candidate_confirmed: true,
+              candidate_confirmed_at: new Date().toISOString(),
+              status: 'confirmed',
+            })
+            .eq('id', meetingId)
+            .select('*, candidate:candidates(name, surname), vacancy:vacancies(title)')
+            .single()
+
+          if (!meetErr && meeting) {
+            const name = `${meeting.candidate?.name || ''} ${meeting.candidate?.surname || ''}`.trim()
+            await editMessageText(
+              chatId,
+              messageId,
+              `✅ <b>Встреча подтверждена!</b>\n\n` +
+              `💼 ${meeting.vacancy?.title || 'Вакансия'}\n` +
+              `📆 ${formatDateTime(meeting.scheduled_at)}\n\n` +
+              `🕐 ${formatDateTime()}`
+            )
+            await answerCallbackQuery(callbackId, 'Спасибо! Встреча подтверждена ✅')
+
+            // Notify agency
+            const agencyChatId = process.env.TELEGRAM_AGENCY_CHAT_ID
+            if (agencyChatId) {
+              sendMessage(
+                agencyChatId,
+                `✅ <b>Кандидат ${name} подтвердил встречу</b>\n\n` +
+                `💼 ${meeting.vacancy?.title || 'Вакансия'}\n` +
+                `📆 ${formatDateTime(meeting.scheduled_at)}\n\n` +
+                `🕐 ${formatDateTime()}`
+              ).catch(err => console.error('Telegram error:', err))
+            }
+          } else {
+            await answerCallbackQuery(callbackId, 'Встреча не найдена')
+          }
+        } else {
+          await answerCallbackQuery(callbackId, 'БД не настроена')
+        }
+        return NextResponse.json({ ok: true })
+      }
+
+      if (action === 'decline_meeting') {
+        const meetingId = applicationId // reuse the split variable
+        if (supabase) {
+          const { data: meeting, error: meetErr } = await supabase
+            .from('meetings')
+            .update({
+              status: 'cancelled',
+              cancelled_at: new Date().toISOString(),
+              cancel_reason: 'Кандидат отменил',
+            })
+            .eq('id', meetingId)
+            .select('*, candidate:candidates(name, surname), vacancy:vacancies(title)')
+            .single()
+
+          if (!meetErr && meeting) {
+            const name = `${meeting.candidate?.name || ''} ${meeting.candidate?.surname || ''}`.trim()
+            await editMessageText(
+              chatId,
+              messageId,
+              `❌ <b>Встреча отменена</b>\n\n` +
+              `💼 ${meeting.vacancy?.title || 'Вакансия'}\n\n` +
+              `🕐 ${formatDateTime()}`
+            )
+            await answerCallbackQuery(callbackId, 'Встреча отменена')
+
+            // Update application status back to approved
+            await supabase
+              .from('applications')
+              .update({ status: 'approved' })
+              .eq('id', meeting.application_id)
+
+            // Notify agency
+            const agencyChatId = process.env.TELEGRAM_AGENCY_CHAT_ID
+            if (agencyChatId) {
+              sendMessage(
+                agencyChatId,
+                `❌ <b>Встреча отменена</b>\n\n` +
+                `👤 ${name}\n` +
+                `💬 Причина: Кандидат отменил\n\n` +
+                `🕐 ${formatDateTime()}`
+              ).catch(err => console.error('Telegram error:', err))
+            }
+          } else {
+            await answerCallbackQuery(callbackId, 'Встреча не найдена')
+          }
+        } else {
+          await answerCallbackQuery(callbackId, 'БД не настроена')
+        }
+        return NextResponse.json({ ok: true })
+      }
+
       if (action === 'approve' || action === 'reject') {
         const newStatus = action === 'approve' ? 'approved' : 'rejected'
         const statusEmoji = action === 'approve' ? '✅' : '❌'
@@ -67,7 +166,8 @@ export async function POST(req: NextRequest) {
               messageId,
               `${statusEmoji} <b>${statusText}</b>\n\n` +
               `👤 ${app.candidate?.name} ${app.candidate?.surname}\n` +
-              `💼 ${app.vacancy?.title}`
+              `💼 ${app.vacancy?.title}\n\n` +
+              `🕐 ${formatDateTime()}`
             )
             await answerCallbackQuery(callbackId, statusText)
             return NextResponse.json({ ok: true })
@@ -82,7 +182,7 @@ export async function POST(req: NextRequest) {
           await editMessageText(
             chatId,
             messageId,
-            `${statusEmoji} <b>${statusText}</b>\n\nЗаявка ${applicationId}`
+            `${statusEmoji} <b>${statusText}</b>\n\nЗаявка ${applicationId}\n\n🕐 ${formatDateTime()}`
           )
           await answerCallbackQuery(callbackId, statusText)
         } else {

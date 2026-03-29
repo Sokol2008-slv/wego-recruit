@@ -90,6 +90,28 @@ export type Application = {
   candidate?: Candidate
 }
 
+export type Meeting = {
+  id: string
+  created_at: string
+  application_id: string
+  candidate_id: string
+  vacancy_id: string
+  scheduled_at: string
+  docs_status: 'pending' | 'approved' | 'rejected'
+  docs_approved_at?: string | null
+  reminder_sent: boolean
+  confirmation_sent: boolean
+  candidate_confirmed?: boolean | null
+  candidate_confirmed_at?: string | null
+  status: 'scheduled' | 'confirmed' | 'no_response' | 'cancelled' | 'completed'
+  cancelled_at?: string | null
+  cancel_reason?: string | null
+  notes?: string | null
+  // Joined data
+  candidate?: Candidate
+  vacancy?: Vacancy
+}
+
 export type EmployerRequest = {
   id: string
   created_at: string

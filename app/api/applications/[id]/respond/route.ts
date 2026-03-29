@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/supabase'
-import { sendMessage } from '@/lib/telegram'
+import { sendMessage, formatDateTime } from '@/lib/telegram'
 
 // POST — работодатель одобряет/отклоняет заявку
 // Вызывается из Telegram webhook (callback кнопки) или напрямую
@@ -44,7 +44,7 @@ export async function POST(
       if (agencyChatId) {
         const candidate = data.candidate
         const vacancy = data.vacancy
-        const text = `✅ Вакансия одобрена!\nКомпания: ${vacancy?.company}\nВакансия: ${vacancy?.title}\nКандидат: ${candidate?.name} ${candidate?.surname}`
+        const text = `✅ Вакансия одобрена!\nКомпания: ${vacancy?.company}\nВакансия: ${vacancy?.title}\nКандидат: ${candidate?.name} ${candidate?.surname}\n\n🕐 ${formatDateTime()}`
         sendMessage(agencyChatId, text).catch(err => console.error('Telegram notify error:', err))
       }
     }

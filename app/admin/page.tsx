@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-type Tab = 'applications' | 'candidates'
+type Tab = 'applications' | 'candidates' | 'meetings'
 
 type ApplicationRow = {
   id: string
@@ -40,11 +40,39 @@ type CandidateDetail = CandidateRow & {
   applications: (ApplicationRow & { vacancy?: { id: string; title: string; company: string; city: string; country: string; salary?: string } })[]
 }
 
+type MeetingRow = {
+  id: string
+  created_at: string
+  application_id: string
+  scheduled_at: string
+  docs_status: string
+  status: string
+  cancel_reason?: string | null
+  notes?: string | null
+  candidate?: { id: string; name: string; surname: string; phone: string; telegram?: string | null; telegram_id?: string | null }
+  vacancy?: { id: string; title: string; company: string; city: string; country: string }
+}
+
+const MEETING_STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  scheduled: { label: 'Запланирована', color: 'text-yellow-400', bg: 'bg-yellow-400/15' },
+  confirmed: { label: 'Подтверждена', color: 'text-green-400', bg: 'bg-green-400/15' },
+  no_response: { label: 'Нет ответа', color: 'text-red-400', bg: 'bg-red-400/15' },
+  cancelled: { label: 'Отменена', color: 'text-gray-400', bg: 'bg-gray-400/15' },
+  completed: { label: 'Завершена', color: 'text-blue-400', bg: 'bg-blue-400/15' },
+}
+
+const DOCS_STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  pending: { label: 'Ожидание', color: 'text-yellow-400', bg: 'bg-yellow-400/15' },
+  approved: { label: 'Одобрены', color: 'text-green-400', bg: 'bg-green-400/15' },
+  rejected: { label: 'Отклонены', color: 'text-red-400', bg: 'bg-red-400/15' },
+}
+
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: 'На рассмотрении', color: 'text-yellow-400', bg: 'bg-yellow-400/15' },
   approved: { label: 'Одобрено', color: 'text-green-400', bg: 'bg-green-400/15' },
   rejected: { label: 'Отклонено', color: 'text-red-400', bg: 'bg-red-400/15' },
-  selected: { label: 'Встреча назначена', color: 'text-blue-400', bg: 'bg-blue-400/15' },
+  selected: { label: 'Выбрано', color: 'text-blue-400', bg: 'bg-blue-400/15' },
+  meeting_scheduled: { label: 'Встреча назначена', color: 'text-purple-400', bg: 'bg-purple-400/15' },
   auto_rejected: { label: 'Авто-отклонено', color: 'text-red-400', bg: 'bg-red-400/15' },
 }
 
@@ -68,6 +96,14 @@ export default function AdminPage() {
   // Candidate detail
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+
+  // Meetings tab
+  const [meetings, setMeetings] = useState<MeetingRow[]>([])
+  const [meetingsLoading, setMeetingsLoading] = useState(false)
+  const [cancelMeetingId, setCancelMeetingId] = useState<string | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [rescheduleMeetingId, setRescheduleMeetingId] = useState<string | null>(null)
+  const [rescheduleDate, setRescheduleDate] = useState('')
 
   const getAuthHeaders = (): Record<string, string> => {
     const email = (typeof window !== 'undefined' ? sessionStorage.getItem('admin_email') : null) || adminEmail
@@ -140,6 +176,59 @@ export default function AdminPage() {
     setDetailLoading(false)
   }
 
+  const fetchMeetings = useCallback(async () => {
+    setMeetingsLoading(true)
+    try {
+      const res = await fetch('/api/admin/meetings', {
+        headers: { ...getAuthHeaders() },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setMeetings(data.meetings || [])
+      }
+    } catch { /* ignore */ }
+    setMeetingsLoading(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleApproveDocs = async (meetingId: string) => {
+    try {
+      await fetch(`/api/admin/meetings/${meetingId}`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docsStatus: 'approved' }),
+      })
+      fetchMeetings()
+    } catch { /* ignore */ }
+  }
+
+  const handleCancelMeeting = async (meetingId: string) => {
+    try {
+      await fetch(`/api/admin/meetings/${meetingId}`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled', cancelReason: cancelReason || 'Без причины' }),
+      })
+      setCancelMeetingId(null)
+      setCancelReason('')
+      fetchMeetings()
+    } catch { /* ignore */ }
+  }
+
+  const handleRescheduleMeeting = async (meetingId: string) => {
+    if (!rescheduleDate) return
+    try {
+      await fetch(`/api/admin/meetings/${meetingId}`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt: new Date(rescheduleDate).toISOString() }),
+      })
+      setRescheduleMeetingId(null)
+      setRescheduleDate('')
+      fetchMeetings()
+    } catch { /* ignore */ }
+  }
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setSearchDebounce(search), 300)
@@ -157,6 +246,12 @@ export default function AdminPage() {
       fetchApplications()
     }
   }, [authed, tab, fetchApplications])
+
+  useEffect(() => {
+    if (authed && tab === 'meetings') {
+      fetchMeetings()
+    }
+  }, [authed, tab, fetchMeetings])
 
   // Check stored session
   useEffect(() => {
@@ -332,6 +427,16 @@ export default function AdminPage() {
           >
             Кандидаты
           </button>
+          <button
+            onClick={() => setTab('meetings')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              tab === 'meetings'
+                ? 'bg-accent/15 text-accent'
+                : 'bg-bg2 border border-border text-muted hover:text-white'
+            }`}
+          >
+            Встречи
+          </button>
         </div>
 
         {/* Applications tab */}
@@ -409,6 +514,133 @@ export default function AdminPage() {
                     </div>
                   </button>
                 ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Meetings tab */}
+        {tab === 'meetings' && (
+          <>
+            {meetingsLoading && <div className="text-muted text-center py-8">Загрузка...</div>}
+            {!meetingsLoading && meetings.length === 0 && (
+              <div className="text-muted text-center py-8">Нет встреч</div>
+            )}
+            {!meetingsLoading && meetings.length > 0 && (
+              <div className="space-y-3">
+                {meetings.map(m => {
+                  const ms = MEETING_STATUS_LABELS[m.status] || MEETING_STATUS_LABELS.scheduled
+                  const ds = DOCS_STATUS_LABELS[m.docs_status] || DOCS_STATUS_LABELS.pending
+                  const scheduledDate = new Date(m.scheduled_at)
+                  const dateStr = scheduledDate.toLocaleString('ru-RU', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                  })
+
+                  return (
+                    <div key={m.id} className="bg-bg2 border border-border rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <div className="text-white font-medium">
+                            {m.candidate?.name} {m.candidate?.surname}
+                          </div>
+                          <div className="text-sm text-muted">
+                            {m.vacancy?.title} &middot; {m.vacancy?.company}
+                          </div>
+                          <div className="text-sm text-accent font-medium mt-1">
+                            {dateStr}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${ms.bg} ${ms.color}`}>
+                            {ms.label}
+                          </span>
+                          <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${ds.bg} ${ds.color}`}>
+                            Док: {ds.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {m.cancel_reason && (
+                        <div className="text-xs text-red-400 mb-2">Причина отмены: {m.cancel_reason}</div>
+                      )}
+
+                      {m.status !== 'cancelled' && m.status !== 'completed' && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {m.docs_status !== 'approved' && (
+                            <button
+                              onClick={() => handleApproveDocs(m.id)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors"
+                            >
+                              Документы ОК
+                            </button>
+                          )}
+
+                          {rescheduleMeetingId === m.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="datetime-local"
+                                value={rescheduleDate}
+                                onChange={e => setRescheduleDate(e.target.value)}
+                                className="bg-bg border border-border rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-accent"
+                              />
+                              <button
+                                onClick={() => handleRescheduleMeeting(m.id)}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors"
+                              >
+                                Сохранить
+                              </button>
+                              <button
+                                onClick={() => { setRescheduleMeetingId(null); setRescheduleDate('') }}
+                                className="text-xs px-2 py-1.5 text-muted hover:text-white transition-colors"
+                              >
+                                Отмена
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setRescheduleMeetingId(m.id)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors"
+                            >
+                              Назначить дату
+                            </button>
+                          )}
+
+                          {cancelMeetingId === m.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={cancelReason}
+                                onChange={e => setCancelReason(e.target.value)}
+                                placeholder="Причина отмены..."
+                                className="bg-bg border border-border rounded-lg px-2 py-1 text-xs text-white placeholder:text-muted/40 outline-none focus:border-accent"
+                              />
+                              <button
+                                onClick={() => handleCancelMeeting(m.id)}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors"
+                              >
+                                Подтвердить
+                              </button>
+                              <button
+                                onClick={() => { setCancelMeetingId(null); setCancelReason('') }}
+                                className="text-xs px-2 py-1.5 text-muted hover:text-white transition-colors"
+                              >
+                                Отмена
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setCancelMeetingId(m.id)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors"
+                            >
+                              Отменить
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </>
