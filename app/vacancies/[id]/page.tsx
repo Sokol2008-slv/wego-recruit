@@ -12,6 +12,7 @@ export default function VacancyDetailPage() {
   const [loading, setLoading] = useState(true)
   const [applied, setApplied] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [hasActiveMeeting, setHasActiveMeeting] = useState(false)
 
   useEffect(() => {
     fetch(`/api/vacancies/${params.id}`)
@@ -21,6 +22,22 @@ export default function VacancyDetailPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+
+    // Check for active meetings
+    const token = localStorage.getItem('wego_token')
+    if (token) {
+      fetch('/api/meetings', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.meetings) {
+            const active = data.meetings.some((m: { status: string }) => m.status !== 'cancelled')
+            setHasActiveMeeting(active)
+          }
+        })
+        .catch(() => {})
+    }
   }, [params.id])
 
   const handleApply = async () => {
@@ -149,17 +166,26 @@ export default function VacancyDetailPage() {
             )}
 
             {/* Apply button */}
-            <button
-              onClick={applied ? undefined : handleApply}
-              disabled={applied || applying}
-              className={`w-full py-3 rounded-xl font-medium transition-colors ${
-                applied
-                  ? 'bg-success/20 text-success'
-                  : 'bg-accent hover:bg-accent/90 text-white'
-              } disabled:opacity-50`}
-            >
-              {applied ? '✓ Заявка отправлена' : applying ? 'Отправка...' : 'Подать заявку'}
-            </button>
+            {hasActiveMeeting ? (
+              <div className="w-full py-3 rounded-xl bg-yellow-400/15 text-yellow-400 text-center font-medium">
+                У вас уже есть назначенная встреча{' '}
+                <a href="/dashboard" className="underline hover:text-yellow-300 transition-colors">
+                  Перейти к встречам &rarr;
+                </a>
+              </div>
+            ) : (
+              <button
+                onClick={applied ? undefined : handleApply}
+                disabled={applied || applying}
+                className={`w-full py-3 rounded-xl font-medium transition-colors ${
+                  applied
+                    ? 'bg-success/20 text-success'
+                    : 'bg-accent hover:bg-accent/90 text-white'
+                } disabled:opacity-50`}
+              >
+                {applied ? '✓ Заявка отправлена' : applying ? 'Отправка...' : 'Подать заявку'}
+              </button>
+            )}
           </div>
         </div>
       </main>

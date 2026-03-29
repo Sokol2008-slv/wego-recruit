@@ -87,6 +87,9 @@ export default function AdminPage() {
   const [applications, setApplications] = useState<ApplicationRow[]>([])
   const [appsLoading, setAppsLoading] = useState(false)
 
+  // Applications search
+  const [appsSearch, setAppsSearch] = useState('')
+
   // Candidates tab
   const [candidates, setCandidates] = useState<CandidateRow[]>([])
   const [candidatesLoading, setCandidatesLoading] = useState(false)
@@ -442,11 +445,28 @@ export default function AdminPage() {
         {/* Applications tab */}
         {tab === 'applications' && (
           <>
+            <input
+              value={appsSearch}
+              onChange={e => setAppsSearch(e.target.value)}
+              className="w-full bg-bg2 border border-border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors mb-4"
+              placeholder="Поиск по имени..."
+            />
             {appsLoading && <div className="text-muted text-center py-8">Загрузка...</div>}
             {!appsLoading && applications.length === 0 && (
               <div className="text-muted text-center py-8">Нет заявок</div>
             )}
-            {!appsLoading && applications.length > 0 && (
+            {!appsLoading && applications.length > 0 && (() => {
+              const filteredApps = appsSearch.trim()
+                ? applications.filter(app => {
+                    const q = appsSearch.trim().toLowerCase()
+                    const name = (app.candidate?.name || '').toLowerCase()
+                    const surname = (app.candidate?.surname || '').toLowerCase()
+                    return name.includes(q) || surname.includes(q) || `${name} ${surname}`.includes(q)
+                  })
+                : applications
+              return filteredApps.length === 0 ? (
+                <div className="text-muted text-center py-8">Ничего не найдено</div>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -459,7 +479,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {applications.map(app => {
+                    {filteredApps.map(app => {
                       const sc = STATUS_LABELS[app.status] || STATUS_LABELS.pending
                       return (
                         <tr key={app.id} className="border-b border-border/50 hover:bg-bg2/50">
@@ -507,7 +527,8 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+              )
+            })()}
           </>
         )}
 

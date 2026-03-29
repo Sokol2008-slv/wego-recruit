@@ -105,7 +105,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ application: { ...mockApp, vacancy } })
     }
 
-    // Supabase mode
+    // Supabase mode — check for active meeting
+    const { data: activeMeeting } = await supabase
+      .from('meetings')
+      .select('id')
+      .eq('candidate_id', payload.candidateId)
+      .not('status', 'eq', 'cancelled')
+      .limit(1)
+
+    if (activeMeeting && activeMeeting.length > 0) {
+      return NextResponse.json(
+        { error: 'У вас уже есть назначенная встреча. Подача новых заявок невозможна.' },
+        { status: 403 }
+      )
+    }
+
     const { data: existing } = await supabase
       .from('applications')
       .select('id')

@@ -22,6 +22,7 @@ export default function VacanciesPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
   const [candidateCountry, setCandidateCountry] = useState<string | null>(null)
+  const [hasActiveMeeting, setHasActiveMeeting] = useState(false)
 
   useEffect(() => {
     // Даём useAuth время проверить localStorage
@@ -66,6 +67,19 @@ export default function VacanciesPage() {
         .then(data => {
           if (data.applications) {
             setAppliedIds(new Set(data.applications.map((a: { vacancy_id: string }) => a.vacancy_id)))
+          }
+        })
+        .catch(() => {})
+
+      // Check for active meetings
+      fetch('/api/meetings', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.meetings) {
+            const active = data.meetings.some((m: { status: string }) => m.status !== 'cancelled')
+            setHasActiveMeeting(active)
           }
         })
         .catch(() => {})
@@ -142,6 +156,15 @@ export default function VacanciesPage() {
         <div className="max-w-3xl mx-auto">
           <h1 className="font-display text-4xl text-white mb-2">Доступные вакансии</h1>
           <p className="text-muted mb-6">Выберите подходящую вакансию и откликнитесь</p>
+
+          {hasActiveMeeting && (
+            <div className="bg-yellow-400/15 text-yellow-400 rounded-xl px-4 py-3 mb-6 text-sm font-medium">
+              📅 У вас назначена встреча. Подача новых заявок приостановлена.{' '}
+              <a href="/dashboard" className="underline hover:text-yellow-300 transition-colors">
+                Перейти к встречам &rarr;
+              </a>
+            </div>
+          )}
 
           {/* Filters */}
           {countries.length > 1 && (
