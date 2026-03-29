@@ -6,12 +6,21 @@ import Nav from '@/components/Nav'
 import { useAuth } from '@/lib/useAuth'
 import type { Application } from '@/lib/supabase'
 
-type Tab = 'pending' | 'approved' | 'rejected'
+type Tab = 'pending' | 'approved' | 'rejected' | 'meetings'
+
+type MeetingData = {
+  id: string
+  scheduled_at: string
+  status: string
+  docs_status: string
+  vacancy?: { id: string; title: string; company: string; city: string; country: string; salary?: string }
+}
 
 const TABS: { key: Tab; label: string; color: string; bgColor: string }[] = [
   { key: 'pending', label: 'На рассмотрении', color: 'text-warning', bgColor: 'bg-warning/15' },
   { key: 'approved', label: 'Одобрено', color: 'text-success', bgColor: 'bg-success/15' },
   { key: 'rejected', label: 'Отклонено', color: 'text-danger', bgColor: 'bg-danger/15' },
+  { key: 'meetings', label: 'Встречи', color: 'text-blue-400', bgColor: 'bg-blue-400/15' },
 ]
 
 export default function DashboardPage() {
@@ -23,6 +32,8 @@ export default function DashboardPage() {
   const [selecting, setSelecting] = useState<string | null>(null)
   const [showWarning, setShowWarning] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [meetings, setMeetings] = useState<MeetingData[]>([])
+  const [meetingsLoading, setMeetingsLoading] = useState(false)
 
   const fetchApps = useCallback(async () => {
     if (!token) return
@@ -37,6 +48,19 @@ export default function DashboardPage() {
       }
     } catch { /* ignore */ }
     setLoading(false)
+  }, [token])
+
+  const fetchMeetings = useCallback(async () => {
+    if (!token) return
+    setMeetingsLoading(true)
+    try {
+      const res = await fetch('/api/meetings', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.meetings) setMeetings(data.meetings)
+    } catch { /* ignore */ }
+    setMeetingsLoading(false)
   }, [token])
 
   useEffect(() => {
@@ -58,16 +82,22 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [token, fetchApps])
 
+  // Fetch meetings when tab switches to meetings
+  useEffect(() => {
+    if (tab === 'meetings' && token) fetchMeetings()
+  }, [tab, token, fetchMeetings])
+
   const filterApps = (t: Tab) => {
     if (t === 'pending') return applications.filter(a => a.status === 'pending')
     if (t === 'approved') return applications.filter(a => a.status === 'approved' || a.status === 'selected')
     return applications.filter(a => a.status === 'rejected' || a.status === 'auto_rejected')
   }
 
-  const counts = {
+  const counts: Record<Tab, number> = {
     pending: filterApps('pending').length,
     approved: filterApps('approved').length,
     rejected: filterApps('rejected').length,
+    meetings: meetings.filter(m => m.status !== 'cancelled').length,
   }
 
   const handleSelect = async (applicationId: string) => {
@@ -123,9 +153,9 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {loading && <div className="text-center py-12 text-muted">Загрузка...</div>}
+          {tab !== 'meetings' && loading && <div className="text-center py-12 text-muted">Загрузка...</div>}
 
-          {!loading && currentApps.length === 0 && (
+          {tab !== 'meetings' && !loading && currentApps.length === 0 && (
             <div className="text-center py-12">
               <div className="text-4xl mb-4">
                 {tab === 'pending' ? '⏳' : tab === 'approved' ? '✅' : '📋'}
@@ -146,7 +176,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {!loading && (
+          {tab !== 'meetings' && !loading && (
             <div className="space-y-3">
               {currentApps.map(app => {
                 const v = app.vacancy
@@ -209,6 +239,89 @@ export default function DashboardPage() {
                 )
               })}
             </div>
+          )}
+          {/* Meetings tab */}
+          {tab === 'meetings' && (
+            <>
+              {meetingsLoading && <div className="text-center py-12 text-muted">Загрузка...</div>}
+              {!meetingsLoading && meetings.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-4">📅</div>
+                  <div className="text-muted">Нет назначенных встреч</div>
+                </div>
+              )}
+              {!meetingsLoading && meetings.length > 0 && (
+                <div className="space-y-3">
+                  {meetings.map(m => {
+                    const v = m.vacancy
+                    const meetingStatusConfig: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+                      scheduled: { label: 'Запланирована', color: 'text-yellow-400', bg: 'bg-yellow-400/15', icon: '📅' },
+                      confirmed: { label: 'Подтверждена', color: 'text-green-400', bg: 'bg-green-400/15', icon: '✅' },
+                      no_response: { label: 'Нет ответа', color: 'text-red-400', bg: 'bg-red-400/15', icon: '⚠️' },
+                      cancelled: { label: 'Отменена', color: 'text-gray-400', bg: 'bg-gray-400/15', icon: '❌' },
+                      completed: { label: 'Завершена', color: 'text-blue-400', bg: 'bg-blue-400/15', icon: '🎉' },
+                    }
+                    const ms = meetingStatusConfig[m.status] || meetingStatusConfig.scheduled
+                    const scheduled = new Date(m.scheduled_at)
+                    const dateStr = scheduled.toLocaleString('ru-RU', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })
+                    const isPast = scheduled < new Date()
+
+                    return (
+                      <div key={m.id} className={`bg-bg2 border rounded-2xl p-5 ${m.status === 'cancelled' ? 'border-border opacity-60' : 'border-border'}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-semibold text-white">{v?.title}</h3>
+                            <p className="text-sm text-muted">{v?.company} · {v?.city}, {v?.country}</p>
+                          </div>
+                          <span className={`text-xs px-2.5 py-1 rounded-full ${ms.bg} ${ms.color}`}>
+                            {ms.icon} {ms.label}
+                          </span>
+                        </div>
+
+                        {v?.salary && (
+                          <div className="text-lg font-bold text-accent mb-3">{v.salary}</div>
+                        )}
+
+                        <div className={`rounded-xl p-4 ${m.status === 'cancelled' ? 'bg-gray-500/10' : isPast ? 'bg-blue-500/10' : 'bg-accent/10'}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-lg">🕐</span>
+                            <span className="text-white font-semibold text-lg">{dateStr}</span>
+                          </div>
+                          {m.status === 'scheduled' && !isPast && (
+                            <p className="text-sm text-muted mt-1">Мы напомним вам за 2 часа до встречи</p>
+                          )}
+                          {m.status === 'confirmed' && (
+                            <p className="text-sm text-green-400 mt-1">Вы подтвердили присутствие</p>
+                          )}
+                          {m.status === 'cancelled' && (
+                            <p className="text-sm text-gray-400 mt-1">Встреча отменена</p>
+                          )}
+                        </div>
+
+                        {m.docs_status === 'pending' && m.status !== 'cancelled' && (
+                          <div className="mt-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
+                            <p className="text-sm text-yellow-400">⏳ Документы на проверке</p>
+                          </div>
+                        )}
+                        {m.docs_status === 'approved' && (
+                          <div className="mt-3 bg-green-500/10 border border-green-500/30 rounded-xl p-3">
+                            <p className="text-sm text-green-400">✅ Документы одобрены</p>
+                          </div>
+                        )}
+                        {m.docs_status === 'rejected' && (
+                          <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                            <p className="text-sm text-red-400">❌ Документы отклонены — свяжитесь с нами</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
