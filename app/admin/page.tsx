@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 type Tab = 'applications' | 'candidates' | 'meetings'
 
@@ -49,7 +49,7 @@ type MeetingRow = {
   status: string
   cancel_reason?: string | null
   notes?: string | null
-  candidate?: { id: string; name: string; surname: string; phone: string; telegram?: string | null; telegram_id?: string | null }
+  candidate?: { id: string; name: string; surname: string; phone: string; email?: string; telegram?: string | null; telegram_id?: string | null }
   vacancy?: { id: string; title: string; company: string; city: string; country: string }
 }
 
@@ -76,6 +76,30 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   auto_rejected: { label: 'Авто-отклонено', color: 'text-red-400', bg: 'bg-red-400/15' },
 }
 
+const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Все статусы' },
+  { value: 'pending', label: 'На рассмотрении' },
+  { value: 'approved', label: 'Одобрено' },
+  { value: 'rejected', label: 'Отклонено' },
+  { value: 'selected', label: 'Выбрано' },
+  { value: 'meeting_scheduled', label: 'Встреча назначена' },
+  { value: 'auto_rejected', label: 'Авто-отклонено' },
+]
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'только что'
+  if (mins < 60) return `${mins}м назад`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}ч назад`
+  const days = Math.floor(hours / 24)
+  return `${days}д назад`
+}
+
+type SortField = 'name' | 'date' | 'status'
+type SortDir = 'asc' | 'desc'
+
 export default function AdminPage() {
   const [adminEmail, setAdminEmail] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
@@ -87,8 +111,13 @@ export default function AdminPage() {
   const [applications, setApplications] = useState<ApplicationRow[]>([])
   const [appsLoading, setAppsLoading] = useState(false)
 
-  // Applications search
+  // Applications search + filters
   const [appsSearch, setAppsSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+
+  // Applications sorting
+  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   // Candidates tab
   const [candidates, setCandidates] = useState<CandidateRow[]>([])
@@ -179,6 +208,11 @@ export default function AdminPage() {
     setDetailLoading(false)
   }
 
+  const viewCandidate = (candidateId: string) => {
+    setTab('candidates')
+    fetchCandidateDetail(candidateId)
+  }
+
   const fetchMeetings = useCallback(async () => {
     setMeetingsLoading(true)
     try {
@@ -232,6 +266,86 @@ export default function AdminPage() {
     } catch { /* ignore */ }
   }
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir(field === 'date' ? 'desc' : 'asc')
+    }
+  }
+
+  const sortArrow = (field: SortField) => {
+    if (sortField !== field) return ''
+    return sortDir === 'asc' ? ' \u25B2' : ' \u25BC'
+  }
+
+  // Filtered and sorted applications
+  const filteredSortedApps = useMemo(() => {
+    let result = [...applications]
+
+    // Status filter
+    if (statusFilter) {
+      result = result.filter(app => app.status === statusFilter)
+    }
+
+    // Text search across all fields
+    if (appsSearch.trim()) {
+      const q = appsSearch.trim().toLowerCase()
+      result = result.filter(app => {
+        const name = (app.candidate?.name || '').toLowerCase()
+        const surname = (app.candidate?.surname || '').toLowerCase()
+        const phone = (app.candidate?.phone || '').toLowerCase()
+        const email = (app.candidate?.email || '').toLowerCase()
+        const vacancyTitle = (app.vacancy?.title || '').toLowerCase()
+        const company = (app.vacancy?.company || '').toLowerCase()
+        const statusLabel = (STATUS_LABELS[app.status]?.label || '').toLowerCase()
+        return (
+          name.includes(q) ||
+          surname.includes(q) ||
+          `${name} ${surname}`.includes(q) ||
+          phone.includes(q) ||
+          email.includes(q) ||
+          vacancyTitle.includes(q) ||
+          company.includes(q) ||
+          statusLabel.includes(q)
+        )
+      })
+    }
+
+    // Sorting
+    result.sort((a, b) => {
+      let cmp = 0
+      if (sortField === 'name') {
+        const aName = `${a.candidate?.name || ''} ${a.candidate?.surname || ''}`.toLowerCase()
+        const bName = `${b.candidate?.name || ''} ${b.candidate?.surname || ''}`.toLowerCase()
+        cmp = aName.localeCompare(bName)
+      } else if (sortField === 'date') {
+        cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      } else if (sortField === 'status') {
+        const aLabel = (STATUS_LABELS[a.status]?.label || '').toLowerCase()
+        const bLabel = (STATUS_LABELS[b.status]?.label || '').toLowerCase()
+        cmp = aLabel.localeCompare(bLabel)
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
+    return result
+  }, [applications, appsSearch, statusFilter, sortField, sortDir])
+
+  // Stats
+  const stats = useMemo(() => {
+    const uniqueCandidateIds = new Set(applications.map(a => a.candidate?.id).filter(Boolean))
+    const pendingCount = applications.filter(a => a.status === 'pending').length
+    const activeMeetings = meetings.filter(m => m.status !== 'cancelled' && m.status !== 'completed').length
+    return {
+      candidates: uniqueCandidateIds.size,
+      applications: applications.length,
+      pending: pendingCount,
+      activeMeetings,
+    }
+  }, [applications, meetings])
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setSearchDebounce(search), 300)
@@ -255,6 +369,14 @@ export default function AdminPage() {
       fetchMeetings()
     }
   }, [authed, tab, fetchMeetings])
+
+  // Fetch meetings for stats when authed (even if not on meetings tab)
+  useEffect(() => {
+    if (authed && meetings.length === 0) {
+      fetchMeetings()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed])
 
   // Check stored session
   useEffect(() => {
@@ -397,7 +519,7 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-bg pt-8 pb-12 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-display text-3xl text-white">Админ панель</h1>
           <button
@@ -406,6 +528,38 @@ export default function AdminPage() {
           >
             Выйти
           </button>
+        </div>
+
+        {/* Stats bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="bg-bg2 border border-border rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-lg">👥</span>
+            <div>
+              <div className="text-white text-lg font-semibold leading-tight">{stats.candidates}</div>
+              <div className="text-muted text-xs">Кандидатов</div>
+            </div>
+          </div>
+          <div className="bg-bg2 border border-border rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-lg">📋</span>
+            <div>
+              <div className="text-white text-lg font-semibold leading-tight">{stats.applications}</div>
+              <div className="text-muted text-xs">Заявок</div>
+            </div>
+          </div>
+          <div className="bg-bg2 border border-border rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-lg">⏳</span>
+            <div>
+              <div className="text-yellow-400 text-lg font-semibold leading-tight">{stats.pending}</div>
+              <div className="text-muted text-xs">На рассмотрении</div>
+            </div>
+          </div>
+          <div className="bg-bg2 border border-border rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-lg">📅</span>
+            <div>
+              <div className="text-green-400 text-lg font-semibold leading-tight">{stats.activeMeetings}</div>
+              <div className="text-muted text-xs">Активных встреч</div>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -445,47 +599,78 @@ export default function AdminPage() {
         {/* Applications tab */}
         {tab === 'applications' && (
           <>
-            <input
-              value={appsSearch}
-              onChange={e => setAppsSearch(e.target.value)}
-              className="w-full bg-bg2 border border-border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors mb-4"
-              placeholder="Поиск по имени..."
-            />
+            <div className="flex gap-3 mb-4">
+              <input
+                value={appsSearch}
+                onChange={e => setAppsSearch(e.target.value)}
+                className="flex-1 bg-bg2 border border-border rounded-xl px-4 py-3 text-white placeholder:text-muted/40 outline-none focus:border-accent transition-colors"
+                placeholder="Поиск по имени, телефону, email, вакансии, компании, статусу..."
+              />
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="bg-bg2 border border-border rounded-xl px-4 py-3 text-white outline-none focus:border-accent transition-colors appearance-none cursor-pointer min-w-[180px]"
+              >
+                {STATUS_FILTER_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
             {appsLoading && <div className="text-muted text-center py-8">Загрузка...</div>}
             {!appsLoading && applications.length === 0 && (
               <div className="text-muted text-center py-8">Нет заявок</div>
             )}
             {!appsLoading && applications.length > 0 && (() => {
-              const filteredApps = appsSearch.trim()
-                ? applications.filter(app => {
-                    const q = appsSearch.trim().toLowerCase()
-                    const name = (app.candidate?.name || '').toLowerCase()
-                    const surname = (app.candidate?.surname || '').toLowerCase()
-                    return name.includes(q) || surname.includes(q) || `${name} ${surname}`.includes(q)
-                  })
-                : applications
-              return filteredApps.length === 0 ? (
+              return filteredSortedApps.length === 0 ? (
                 <div className="text-muted text-center py-8">Ничего не найдено</div>
               ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-muted border-b border-border">
-                      <th className="pb-3 pr-4">Кандидат</th>
+                      <th
+                        className="pb-3 pr-4 cursor-pointer hover:text-white transition-colors select-none"
+                        onClick={() => handleSort('name')}
+                      >
+                        Кандидат<span className="text-muted text-xs ml-1">{sortArrow('name')}</span>
+                      </th>
+                      <th className="pb-3 pr-4">Телефон</th>
+                      <th className="pb-3 pr-4">Email</th>
                       <th className="pb-3 pr-4">Вакансия</th>
                       <th className="pb-3 pr-4">Компания</th>
-                      <th className="pb-3 pr-4">Статус</th>
-                      <th className="pb-3">Дата</th>
+                      <th
+                        className="pb-3 pr-4 cursor-pointer hover:text-white transition-colors select-none"
+                        onClick={() => handleSort('status')}
+                      >
+                        Статус<span className="text-muted text-xs ml-1">{sortArrow('status')}</span>
+                      </th>
+                      <th
+                        className="pb-3 cursor-pointer hover:text-white transition-colors select-none"
+                        onClick={() => handleSort('date')}
+                      >
+                        Дата<span className="text-muted text-xs ml-1">{sortArrow('date')}</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredApps.map(app => {
+                    {filteredSortedApps.map(app => {
                       const sc = STATUS_LABELS[app.status] || STATUS_LABELS.pending
                       return (
                         <tr key={app.id} className="border-b border-border/50 hover:bg-bg2/50">
-                          <td className="py-3 pr-4 text-white">
-                            {app.candidate?.name} {app.candidate?.surname}
+                          <td className="py-3 pr-4">
+                            {app.candidate?.id ? (
+                              <button
+                                onClick={() => viewCandidate(app.candidate!.id)}
+                                className="text-white hover:text-accent transition-colors text-left"
+                              >
+                                {app.candidate?.name} {app.candidate?.surname}
+                              </button>
+                            ) : (
+                              <span className="text-white">{app.candidate?.name} {app.candidate?.surname}</span>
+                            )}
                           </td>
+                          <td className="py-3 pr-4 text-muted text-xs">{app.candidate?.phone || '-'}</td>
+                          <td className="py-3 pr-4 text-muted text-xs">{app.candidate?.email || '-'}</td>
                           <td className="py-3 pr-4 text-white">{app.vacancy?.title}</td>
                           <td className="py-3 pr-4 text-muted">{app.vacancy?.company}</td>
                           <td className="py-3 pr-4">
@@ -516,11 +701,16 @@ export default function AdminPage() {
                                 }}
                                 className="ml-2 text-xs px-2.5 py-1 rounded-full bg-accent/15 text-accent hover:bg-accent/25 transition-colors"
                               >
-                                📅 Создать встречу
+                                Создать встречу
                               </button>
                             )}
                           </td>
-                          <td className="py-3 text-muted">{new Date(app.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                          <td className="py-3">
+                            <div className="text-muted">
+                              {new Date(app.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            <div className="text-muted/60 text-xs">{relativeTime(app.created_at)}</div>
+                          </td>
                         </tr>
                       )
                     })}
@@ -592,7 +782,15 @@ export default function AdminPage() {
                           <div className="text-white font-medium">
                             {m.candidate?.name} {m.candidate?.surname}
                           </div>
-                          <div className="text-sm text-muted">
+                          {m.candidate?.phone && (
+                            <div className="text-xs text-muted mt-0.5">
+                              <span>&#x1F4DE; {m.candidate.phone}</span>
+                              {m.candidate?.email && (
+                                <span className="ml-3">&#x1F4E7; {m.candidate.email}</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="text-sm text-muted mt-1">
                             {m.vacancy?.title} &middot; {m.vacancy?.company}
                           </div>
                           <div className="text-sm text-accent font-medium mt-1">

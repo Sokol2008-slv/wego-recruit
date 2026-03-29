@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('meetings')
-    .select('*, candidate:candidates(id, name, surname, phone, telegram, telegram_id), vacancy:vacancies(id, title, company, city, country)')
+    .select('*, candidate:candidates(id, name, surname, phone, email, telegram, telegram_id), vacancy:vacancies(id, title, company, city, country)')
     .order('scheduled_at', { ascending: true })
 
   if (error) {
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         scheduled_at: scheduledAt,
         status: 'scheduled',
       })
-      .select('*, candidate:candidates(id, name, surname, phone, telegram, telegram_id), vacancy:vacancies(id, title, company, city, country)')
+      .select('*, candidate:candidates(id, name, surname, phone, email, telegram, telegram_id), vacancy:vacancies(id, title, company, city, country)')
       .single()
 
     if (meetingError) {
