@@ -37,8 +37,19 @@ type CandidateRow = {
   status: string
 }
 
+type CandidateDetailMeeting = {
+  id: string
+  created_at: string
+  scheduled_at: string
+  status: string
+  docs_status: string
+  cancel_reason?: string | null
+  vacancy?: { id: string; title: string; company: string; city: string; country: string }
+}
+
 type CandidateDetail = CandidateRow & {
   applications: (ApplicationRow & { vacancy?: { id: string; title: string; company: string; city: string; country: string; salary?: string } })[]
+  meetings: CandidateDetailMeeting[]
 }
 
 type MeetingRow = {
@@ -203,7 +214,7 @@ export default function AdminPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setSelectedCandidate({ ...data.candidate, applications: data.applications || [] })
+        setSelectedCandidate({ ...data.candidate, applications: data.applications || [], meetings: data.meetings || [] })
       }
     } catch { /* ignore */ }
     setDetailLoading(false)
@@ -511,6 +522,46 @@ export default function AdminPage() {
                   })}
                 </div>
               )}
+
+              <h2 className="text-lg font-semibold text-white mb-3 mt-6">Встречи ({c.meetings?.length || 0})</h2>
+              {(!c.meetings || c.meetings.length === 0) ? (
+                <p className="text-muted text-sm">Нет встреч</p>
+              ) : (
+                <div className="space-y-3">
+                  {c.meetings.map(mt => {
+                    const ms = MEETING_STATUS_LABELS[mt.status] || MEETING_STATUS_LABELS.scheduled
+                    const ds = DOCS_STATUS_LABELS[mt.docs_status] || DOCS_STATUS_LABELS.pending
+                    const scheduledDate = new Date(mt.scheduled_at)
+                    const dateStr = scheduledDate.toLocaleString('ru-RU', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })
+
+                    return (
+                      <div key={mt.id} className={`bg-bg2 border rounded-xl p-4 ${mt.status === 'cancelled' ? 'border-border opacity-60' : 'border-border'}`}>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="text-white font-medium">{mt.vacancy?.title}</div>
+                            <div className="text-sm text-muted">{mt.vacancy?.company} &middot; {mt.vacancy?.city}, {mt.vacancy?.country}</div>
+                            <div className="text-sm text-accent font-medium mt-1">{dateStr}</div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${ms.bg} ${ms.color}`}>
+                              {ms.label}
+                            </span>
+                            <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${ds.bg} ${ds.color}`}>
+                              Док: {ds.label}
+                            </span>
+                          </div>
+                        </div>
+                        {mt.cancel_reason && (
+                          <div className="text-xs text-red-400 mt-2">Причина отмены: {mt.cancel_reason}</div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -521,8 +572,8 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-bg pt-8 pb-12 px-4">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="font-display text-3xl text-white">Админ панель</h1>
+        <div className="flex items-center justify-between mb-6 gap-4">
+          <h1 className="font-display text-2xl sm:text-3xl text-white">Админ панель</h1>
           <button
             onClick={() => { sessionStorage.removeItem('admin_email'); sessionStorage.removeItem('admin_password'); setAuthed(false); setAdminEmail(''); setAdminPassword('') }}
             className="text-sm text-muted hover:text-white transition-colors"
@@ -564,10 +615,10 @@ export default function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
           <button
             onClick={() => setTab('applications')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               tab === 'applications'
                 ? 'bg-accent/15 text-accent'
                 : 'bg-bg2 border border-border text-muted hover:text-white'
@@ -577,7 +628,7 @@ export default function AdminPage() {
           </button>
           <button
             onClick={() => setTab('candidates')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               tab === 'candidates'
                 ? 'bg-accent/15 text-accent'
                 : 'bg-bg2 border border-border text-muted hover:text-white'
@@ -587,7 +638,7 @@ export default function AdminPage() {
           </button>
           <button
             onClick={() => setTab('meetings')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               tab === 'meetings'
                 ? 'bg-accent/15 text-accent'
                 : 'bg-bg2 border border-border text-muted hover:text-white'
@@ -600,7 +651,7 @@ export default function AdminPage() {
         {/* Applications tab */}
         {tab === 'applications' && (
           <>
-            <div className="flex gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <input
                 value={appsSearch}
                 onChange={e => setAppsSearch(e.target.value)}
@@ -610,7 +661,7 @@ export default function AdminPage() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="bg-bg2 border border-border rounded-xl px-4 py-3 text-white outline-none focus:border-accent transition-colors appearance-none cursor-pointer min-w-[180px]"
+                className="bg-bg2 border border-border rounded-xl px-4 py-3 text-white outline-none focus:border-accent transition-colors appearance-none cursor-pointer sm:min-w-[180px]"
               >
                 {STATUS_FILTER_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -626,7 +677,7 @@ export default function AdminPage() {
                 <div className="text-muted text-center py-8">Ничего не найдено</div>
               ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs sm:text-sm">
                   <thead>
                     <tr className="text-left text-muted border-b border-border">
                       <th

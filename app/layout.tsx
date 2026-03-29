@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body className={`${bebasNeue.variable} ${manrope.variable}`}>
+      <body className={`${bebasNeue.variable} ${manrope.variable} overflow-x-hidden`}>
         {children}
       </body>
     </html>

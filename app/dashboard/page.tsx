@@ -132,12 +132,12 @@ export default function DashboardPage() {
           <p className="text-muted text-sm mb-6">{name ? `${name}, вот ваши заявки` : 'Ваши заявки на вакансии'}</p>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
             {TABS.map(t => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   tab === t.key
                     ? `${t.bgColor} ${t.color}`
                     : 'bg-bg2 border border-border text-muted hover:text-white'

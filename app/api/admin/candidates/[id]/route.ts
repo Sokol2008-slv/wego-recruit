@@ -45,5 +45,15 @@ export async function GET(
     return NextResponse.json({ error: appsError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ candidate, applications: applications || [] })
+  const { data: meetings, error: meetingsError } = await supabase
+    .from('meetings')
+    .select('*, vacancy:vacancies(id, title, company, city, country)')
+    .eq('candidate_id', id)
+    .order('created_at', { ascending: false })
+
+  if (meetingsError) {
+    return NextResponse.json({ error: meetingsError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ candidate, applications: applications || [], meetings: meetings || [] })
 }
