@@ -473,7 +473,7 @@ export default function AdminPage() {
                               {sc.label}
                             </span>
                           </td>
-                          <td className="py-3 text-muted">{new Date(app.created_at).toLocaleDateString('ru-RU')}</td>
+                          <td className="py-3 text-muted">{new Date(app.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                         </tr>
                       )
                     })}

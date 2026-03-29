@@ -153,7 +153,7 @@ export default function DashboardPage() {
                 const statusConfig = {
                   pending: { label: 'На рассмотрении', color: 'text-warning', bg: 'bg-warning/15' },
                   approved: { label: 'Одобрено', color: 'text-success', bg: 'bg-success/15' },
-                  selected: { label: 'Встреча назначена', color: 'text-success', bg: 'bg-success/15' },
+                  selected: { label: 'Документы на проверке', color: 'text-blue-400', bg: 'bg-blue-400/15' },
                   rejected: { label: 'Отклонено', color: 'text-danger', bg: 'bg-danger/15' },
                   auto_rejected: { label: 'Автоматически отклонено', color: 'text-danger', bg: 'bg-danger/15' },
                 }
@@ -192,14 +192,17 @@ export default function DashboardPage() {
                       </button>
                     )}
 
-                    {/* После выбора — контакт */}
+                    {/* После выбора — документы */}
                     {app.status === 'selected' && (
-                      <div className="mt-3 bg-success/10 border border-success/30 rounded-xl p-4">
-                        <p className="text-sm text-success font-medium mb-1">Поздравляем! Встреча назначена!</p>
-                        <p className="text-xs text-muted">Отправьте ваши документы на email:</p>
-                        <a href="mailto:hr@wego-agency.com" className="text-accent text-sm font-medium hover:underline">
+                      <div className="mt-3 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                        <p className="text-sm text-blue-400 font-medium mb-2">Отправьте необходимые документы на email:</p>
+                        <a href="mailto:hr@wego-agency.com" className="text-accent text-lg font-semibold hover:underline block mb-2">
                           hr@wego-agency.com
                         </a>
+                        {v?.company && (
+                          <p className="text-sm text-muted mb-2">Компания: <span className="text-white font-medium">{v.company}</span></p>
+                        )}
+                        <p className="text-xs text-muted">После проверки документов мы назначим дату встречи</p>
                       </div>
                     )}
                   </div>
@@ -211,26 +214,37 @@ export default function DashboardPage() {
       </main>
 
       {/* Success modal */}
-      {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-bg2 border border-border rounded-2xl p-6 max-w-md w-full text-center">
-            <div className="text-4xl mb-3">🎉</div>
-            <h3 className="text-xl font-semibold text-white mb-2">Поздравляем!</h3>
-            <p className="text-muted text-sm mb-4">
-              Встреча назначена. Отправьте ваши документы на email:
-            </p>
-            <a href="mailto:hr@wego-agency.com" className="text-accent text-lg font-semibold hover:underline">
-              hr@wego-agency.com
-            </a>
-            <button
-              onClick={() => setShowSuccess(false)}
-              className="w-full mt-6 px-4 py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-white font-medium transition-colors"
-            >
-              Понятно
-            </button>
+      {showSuccess && (() => {
+        const selectedApp = applications.find(a => a.status === 'selected')
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-bg2 border border-border rounded-2xl p-6 max-w-md w-full text-center">
+              <div className="text-4xl mb-3">📄</div>
+              <h3 className="text-xl font-semibold text-white mb-2">Отправьте документы</h3>
+              <p className="text-muted text-sm mb-4">
+                Отправьте необходимые документы на email:
+              </p>
+              <a href="mailto:hr@wego-agency.com" className="text-accent text-lg font-semibold hover:underline">
+                hr@wego-agency.com
+              </a>
+              {selectedApp?.vacancy?.company && (
+                <p className="text-muted text-sm mt-3">
+                  Компания: <span className="text-white font-medium">{selectedApp.vacancy.company}</span>
+                </p>
+              )}
+              <p className="text-muted text-xs mt-3">
+                После проверки документов мы назначим дату встречи
+              </p>
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="w-full mt-6 px-4 py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-white font-medium transition-colors"
+              >
+                Понятно
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Warning modal */}
       {showWarning && (

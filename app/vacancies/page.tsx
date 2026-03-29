@@ -7,6 +7,12 @@ import VacancyCard from '@/components/VacancyCard'
 import { useAuth } from '@/lib/useAuth'
 import type { Vacancy } from '@/lib/supabase'
 
+const COUNTRY_MAP: Record<string, string> = {
+  poland: 'Польша',
+  germany: 'Германия',
+  czech: 'Чехия',
+}
+
 export default function VacanciesPage() {
   const router = useRouter()
   const { isLoggedIn } = useAuth()
@@ -15,6 +21,7 @@ export default function VacanciesPage() {
   const [filter, setFilter] = useState('all')
   const [authChecked, setAuthChecked] = useState(false)
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
+  const [candidateCountry, setCandidateCountry] = useState<string | null>(null)
 
   useEffect(() => {
     // Даём useAuth время проверить localStorage
@@ -29,6 +36,17 @@ export default function VacanciesPage() {
       setLoading(false)
       return
     }
+
+    // Load candidate survey for vacancy matching
+    try {
+      const surveyRaw = localStorage.getItem('wego_survey')
+      if (surveyRaw) {
+        const survey = JSON.parse(surveyRaw)
+        if (survey.country) {
+          setCandidateCountry(COUNTRY_MAP[survey.country] || survey.country)
+        }
+      }
+    } catch { /* ignore */ }
 
     fetch('/api/vacancies')
       .then(res => res.json())
@@ -64,7 +82,16 @@ export default function VacanciesPage() {
     })),
   ]
 
-  const filtered = filter === 'all' ? vacancies : vacancies.filter(v => v.country === filter)
+  const filteredRaw = filter === 'all' ? vacancies : vacancies.filter(v => v.country === filter)
+
+  // Sort matching vacancies to the top
+  const filtered = candidateCountry
+    ? [...filteredRaw].sort((a, b) => {
+        const aMatch = a.country === candidateCountry ? 0 : 1
+        const bMatch = b.country === candidateCountry ? 0 : 1
+        return aMatch - bMatch
+      })
+    : filteredRaw
 
   // Не авторизован — показываем "пресную" страницу
   if (authChecked && !isLoggedIn) {
@@ -146,7 +173,12 @@ export default function VacanciesPage() {
           {!loading && (
             <div className="space-y-4">
               {filtered.map(v => (
-                <VacancyCard key={v.id} vacancy={v} applied={appliedIds.has(v.id)} />
+                <VacancyCard
+                  key={v.id}
+                  vacancy={v}
+                  applied={appliedIds.has(v.id)}
+                  matching={!!candidateCountry && v.country === candidateCountry}
+                />
               ))}
             </div>
           )}

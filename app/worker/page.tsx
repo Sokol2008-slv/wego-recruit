@@ -314,6 +314,9 @@ export default function WorkerPage() {
         document.cookie = `wego_token=${data.token}; path=/; max-age=${30 * 24 * 60 * 60}`
       }
 
+      // Save survey answers for vacancy matching
+      localStorage.setItem('wego_survey', JSON.stringify(finalData))
+
       // Redirect to vacancies or wherever they came from
       const urlParams = new URLSearchParams(window.location.search)
       const redirect = urlParams.get('redirect') || '/vacancies'

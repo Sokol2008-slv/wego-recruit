@@ -8,9 +8,16 @@ function CountryFlag({ country }: { country: string }) {
   return <span className="text-lg">{flag}</span>
 }
 
-export default function VacancyCard({ vacancy, applied }: { vacancy: Vacancy; applied?: boolean }) {
+export default function VacancyCard({ vacancy, applied, matching }: { vacancy: Vacancy; applied?: boolean; matching?: boolean }) {
   return (
-    <div className="bg-bg2 border border-border rounded-2xl p-5 hover:border-muted/50 transition-all duration-200">
+    <div className={`bg-bg2 border rounded-2xl p-5 hover:border-muted/50 transition-all duration-200 ${matching ? 'border-green-500/40' : 'border-border'}`}>
+      {matching && (
+        <div className="mb-3">
+          <span className="text-xs bg-green-500/15 text-green-400 px-2.5 py-1 rounded-full font-medium">
+            Подходит вам
+          </span>
+        </div>
+      )}
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="text-lg font-semibold text-white">{vacancy.title}</h3>

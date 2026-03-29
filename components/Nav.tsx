@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/lib/useAuth'
+import NotificationBell from '@/components/NotificationBell'
 
 export default function Nav() {
   const { isLoggedIn, name, logout } = useAuth()
@@ -28,6 +29,7 @@ export default function Nav() {
               >
                 Мои заявки
               </Link>
+              <NotificationBell />
               <div className="flex items-center gap-2">
                 <span className="text-xs text-accent">{name}</span>
                 <button
