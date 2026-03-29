@@ -94,11 +94,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: meetingError.message }, { status: 500 })
     }
 
-    // Update application status
+    // Update this application to meeting_scheduled
     await supabase
       .from('applications')
       .update({ status: 'meeting_scheduled' })
       .eq('id', applicationId)
+
+    // Auto-reject all other non-meeting applications for this candidate
+    await supabase
+      .from('applications')
+      .update({ status: 'auto_rejected' })
+      .eq('candidate_id', app.candidate_id)
+      .neq('id', applicationId)
+      .in('status', ['pending', 'approved', 'selected'])
 
     const candidateName = `${app.candidate?.name || ''} ${app.candidate?.surname || ''}`.trim()
     const vacancyTitle = app.vacancy?.title || 'Вакансия'
