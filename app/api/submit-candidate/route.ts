@@ -53,7 +53,6 @@ export async function POST(req: NextRequest) {
       restrictions: body.restrictions,
       restrictions_comment: body.restrictions_comment || null,
       registered: true,
-      category: 'blue_collar',
       source: body.source || 'direct',
       status: 'new',
     }).select().single()
