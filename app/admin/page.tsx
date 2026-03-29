@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { translateValue } from '@/lib/labels'
 
 type Tab = 'applications' | 'candidates' | 'meetings'
 
@@ -440,20 +441,20 @@ export default function AdminPage() {
       { label: 'Email', value: c.email },
       { label: 'Телефон', value: c.phone },
       { label: 'Telegram', value: c.telegram },
-      { label: 'Возраст', value: c.age_range },
-      { label: 'Гражданство', value: c.citizenship },
-      { label: 'Разрешение на работу', value: c.work_permit },
-      { label: 'Тип работы', value: c.job_type?.join(', ') },
-      { label: 'Страна', value: c.country },
-      { label: 'Жильё', value: c.housing_needed },
-      { label: 'Начало работы', value: c.start_date },
-      { label: 'График', value: c.schedule },
-      { label: 'Пара', value: c.couple },
-      { label: 'Польский', value: c.polish_level },
-      { label: 'Ограничения', value: c.restrictions },
+      { label: 'Возраст', value: translateValue('age_range', c.age_range) },
+      { label: 'Гражданство', value: translateValue('citizenship', c.citizenship) },
+      { label: 'Разрешение на работу', value: translateValue('work_permit', c.work_permit) },
+      { label: 'Тип работы', value: translateValue('job_type', c.job_type) },
+      { label: 'Страна', value: translateValue('country', c.country) },
+      { label: 'Жильё', value: translateValue('housing_needed', c.housing_needed) },
+      { label: 'Начало работы', value: translateValue('start_date', c.start_date) },
+      { label: 'График', value: translateValue('schedule', c.schedule) },
+      { label: 'Пара', value: translateValue('couple', c.couple) },
+      { label: 'Польский', value: translateValue('polish_level', c.polish_level) },
+      { label: 'Ограничения', value: translateValue('restrictions', c.restrictions) },
       { label: 'Комментарий к ограничениям', value: c.restrictions_comment },
       { label: 'Локация', value: c.location },
-      { label: 'Статус', value: c.status },
+      { label: 'Статус', value: translateValue('status', c.status) },
     ]
 
     return (

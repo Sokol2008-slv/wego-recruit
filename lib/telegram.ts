@@ -2,9 +2,16 @@
 // Бот отправляет уведомления рекрутёрам WEGO и работодателям
 // Работники получают уведомления ЧЕРЕЗ САЙТ (Telegram — опционально)
 
+import { FIELD_LABELS } from './labels'
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''
 const AGENCY_CHAT_ID = process.env.TELEGRAM_AGENCY_CHAT_ID || ''
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`
+
+// Shorthand for translating field values
+function _tr(field: string, value: string): string {
+  return FIELD_LABELS[field]?.[value] || value
+}
 
 export function formatDateTime(date?: Date | string): string {
   const d = date ? new Date(date) : new Date()
@@ -144,12 +151,12 @@ ${candidate.telegram ? `💬 @${candidate.telegram.replace('@', '')}` : '❌ Tel
 
 📋 <b>Анкета:</b>
 • Возраст: ${candidate.age_range}
-• Гражданство: ${candidate.citizenship}
-• Страна работы: ${candidate.country}
-• Тип работы: ${candidate.job_type.join(', ')}
-• Начало: ${candidate.start_date}
-• График: ${candidate.schedule}
-• Ограничения: ${candidate.restrictions}${candidate.restrictions_comment ? ` (${candidate.restrictions_comment})` : ''}
+• Гражданство: ${_tr('citizenship', candidate.citizenship)}
+• Страна работы: ${_tr('country', candidate.country)}
+• Тип работы: ${candidate.job_type.map(j => _tr('job_type', j)).join(', ')}
+• Начало: ${_tr('start_date', candidate.start_date)}
+• График: ${_tr('schedule', candidate.schedule)}
+• Ограничения: ${_tr('restrictions', candidate.restrictions)}${candidate.restrictions_comment ? ` (${candidate.restrictions_comment})` : ''}
 ${candidate.location ? `• Находится: ${candidate.location}` : ''}
 
 🕐 ${formatDateTime()}`
