@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       .eq('id', candidate.id)
 
     // 🔥 Inngest: отправляем событие — все уведомления обработаются надёжно с retry
-    await inngest.send({
+    inngest.send({
       name: "candidate.registered",
       data: {
         candidate: {
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
           location: body.location,
         },
       },
-    })
+    }).catch(err => console.error('Inngest send error:', err))
 
     return NextResponse.json({
       success: true,

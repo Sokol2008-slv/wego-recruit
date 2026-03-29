@@ -128,14 +128,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    await inngest.send({
+    inngest.send({
       name: "application.created",
       data: {
         applicationId: application.id,
         candidateId: payload.candidateId,
         vacancyId: vacancyId,
       },
-    })
+    }).catch(err => console.error('Inngest send error:', err))
 
     return NextResponse.json({ application })
   } catch {
