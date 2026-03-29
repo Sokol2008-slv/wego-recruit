@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (!supabase) {
-    return NextResponse.json({ error: 'DB not configured' }, { status: 500 })
+    // Тестовый режим — пустой список (заявки в памяти не хранятся)
+    return NextResponse.json({ applications: [] })
   }
 
   const { data, error } = await supabase
@@ -48,12 +49,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
   }
 
-  if (!supabase) {
-    return NextResponse.json({ error: 'DB not configured' }, { status: 500 })
-  }
-
   try {
     const { vacancyId } = await req.json()
+
+    if (!supabase) {
+      // Тестовый режим — возвращаем mock application
+      const mockApp = {
+        id: `app-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        candidate_id: payload.candidateId,
+        vacancy_id: vacancyId,
+        status: 'pending',
+      }
+
+      inngest.send({
+        name: "application.created",
+        data: { applicationId: mockApp.id, candidateId: payload.candidateId, vacancyId },
+      }).catch(() => {})
+
+      return NextResponse.json({ application: mockApp })
+    }
 
     // Check if already applied
     const { data: existing } = await supabase

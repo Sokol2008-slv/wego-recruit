@@ -7,8 +7,28 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
+    let candidateId = `temp-${Date.now()}`
+
     if (!supabase) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
+      // Без Supabase — генерируем токен и работаем в тестовом режиме
+      const token = await signToken({
+        candidateId,
+        phone: body.phone,
+        name: `${body.name} ${body.surname || ''}`.trim(),
+      })
+
+      // Отправляем событие в Inngest (если настроен)
+      inngest.send({
+        name: "candidate.registered",
+        data: { candidate: { id: candidateId, ...body } },
+      }).catch(() => {})
+
+      return NextResponse.json({
+        success: true,
+        token,
+        candidateId,
+        mode: 'test',
+      })
     }
 
     // Insert candidate into Supabase
