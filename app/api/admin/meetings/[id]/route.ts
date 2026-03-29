@@ -90,18 +90,12 @@ export async function PATCH(
         sendMessage(AGENCY_CHAT_ID, text).catch(err => console.error('Telegram error:', err))
       }
 
-      // Update meeting's application back to 'approved'
+      // Reject all related applications (candidate must contact us to reapply)
       await supabase
         .from('applications')
-        .update({ status: 'approved' })
-        .eq('id', meeting.application_id)
-
-      // Also reset any 'selected' applications for this candidate back to 'approved'
-      await supabase
-        .from('applications')
-        .update({ status: 'approved' })
+        .update({ status: 'rejected' })
         .eq('candidate_id', meeting.candidate_id)
-        .eq('status', 'selected')
+        .in('status', ['selected', 'meeting_scheduled', 'approved'])
     }
 
     if (status === 'confirmed' && AGENCY_CHAT_ID) {

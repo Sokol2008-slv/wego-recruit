@@ -516,7 +516,29 @@ export default function AdminPage() {
                             {sc.label}
                           </span>
                         </div>
-                        <div className="text-xs text-muted mt-2">{new Date(app.created_at).toLocaleDateString('ru-RU')}</div>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="text-xs text-muted">{new Date(app.created_at).toLocaleDateString('ru-RU')}</div>
+                          {(app.status === 'rejected' || app.status === 'auto_rejected') && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/admin/applications/${app.id}/restore`, {
+                                    method: 'POST',
+                                    headers: { ...getAuthHeaders() },
+                                  })
+                                  if (res.ok) {
+                                    viewCandidate(c.id)
+                                  } else {
+                                    alert('Ошибка восстановления')
+                                  }
+                                } catch { alert('Ошибка соединения') }
+                              }}
+                              className="text-xs px-3 py-1 rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors"
+                            >
+                              Восстановить заявку
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
